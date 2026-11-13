@@ -1,0 +1,35 @@
+{
+  "name": "kanan-cacao-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kanan Cacao (ASTRA) — Panel Administrativo Web en Next.js para Trazabilidad EUDR, Báscula Ciega y Bonos de Carbono",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\" \"tests/**/*.{ts,tsx}\" \"docs/**/*.md\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\" \"tests/**/*.{ts,tsx}\" \"docs/**/*.md\"",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "next": "^15.1.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.7",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.5",
+    "eslint": "^9.19.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
+    "typescript": "~5.7.3",
+    "typescript-eslint": "^8.22.0"
+  }
+}
