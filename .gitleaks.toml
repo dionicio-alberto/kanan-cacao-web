@@ -1,0 +1,17 @@
+title = "Kanan Cacao Web Admin Secret Scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "supabase-service-role-key"
+description = "Detects Supabase Service Role JWT tokens or secret keys"
+regex = '''(?i)(supabase_service_role_key|service_role)\s*[:=]\s*['"]?[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+['"]?'''
+tags = ["key", "supabase", "security"]
+
+[allowlist]
+description = "Allowlist for example environment files"
+paths = [
+  '''\.env\.example$''',
+  '''docs/'''
+]
