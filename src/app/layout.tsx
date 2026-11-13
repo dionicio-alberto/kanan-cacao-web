@@ -1,10 +1,11 @@
 import React from 'react';
+import './globals.css';
 import { NATURISTA_WEB_THEME } from '@/theme/naturistaWebTheme';
 
 export const metadata = {
-  title: 'Kanan Cacao — Panel Administrativo ASTRA',
+  title: 'Kanan Cacao — Centro de Control Agrotecnológico ASTRA',
   description:
-    'Trazabilidad EUDR, Báscula Ciega, Auditoría CUSTF y Consolidación de Bonos de Carbono',
+    'Pasaporte Digital Geoespacial, Cumplimiento EUDR 2020, Salud NDVI Sentinel-2, Báscula Ciega, GS1 EPCIS 2.0 y Bonos de Carbono en Tabasco',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +16,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           margin: 0,
           backgroundColor: NATURISTA_WEB_THEME.colors.backgroundPrimary,
           color: NATURISTA_WEB_THEME.colors.textPrimary,
-          fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
       >
         {children}
