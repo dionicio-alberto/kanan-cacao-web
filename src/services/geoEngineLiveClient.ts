@@ -8,7 +8,7 @@ export const PRESET_POLYGONS: Record<
   { label: string; description: string; coordinates: number[][] }
 > = {
   SELF_INTERSECTING_BOWTIE: {
-    label: '⚠️ Polígono con Líneas Cruzadas (Figura en 8 / Anillo Abierto)',
+    label: 'Polígono con líneas cruzadas (figura en 8 y anillo abierto)',
     description:
       'Simula un error común en campo: el técnico cruzó su propio camino formando un moño y olvidó cerrar el vértice final.',
     coordinates: [
@@ -19,7 +19,7 @@ export const PRESET_POLYGONS: Record<
     ],
   },
   CLEAN_COMALCALCO: {
-    label: '✅ Polígono Regular (Finca Comalcalco > 4 ha)',
+    label: 'Polígono regular (finca Comalcalco mayor a 4 ha)',
     description: 'Perímetro cuadrangular capturado en Comalcalco sin auto-intersecciones.',
     coordinates: [
       [-93.225, 18.265],
