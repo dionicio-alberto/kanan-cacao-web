@@ -1,3 +1,9 @@
+import {
+  EudrStatus,
+  NdviAlertLevel,
+  ParcelAdminOverview,
+} from '@/services/sustainabilityAdminService';
+
 export const GEO_ENGINE_BASE_URL =
   process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ?? 'http://127.0.0.1:8080';
 
@@ -131,4 +137,105 @@ export async function requestTracesNtExportLive(params: {
   }
 
   return res.json();
+}
+
+interface RawPersistedParcel {
+  parcel_id: string;
+  producer_id: string;
+  producer_name: string;
+  municipality: string;
+  area_hectares: number;
+  eudr_status: EudrStatus;
+  ndvi_alert_level: NdviAlertLevel;
+  mean_ndvi: number;
+  shade_tree_count: number;
+  acahual_removal_post_2020: boolean;
+  has_verified_custf_permit: boolean;
+}
+
+function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
+  return {
+    parcelId: raw.parcel_id,
+    producerId: raw.producer_id,
+    producerName: raw.producer_name,
+    municipality: raw.municipality,
+    areaHectares: Number(raw.area_hectares),
+    eudrStatus: raw.eudr_status,
+    ndviAlertLevel: raw.ndvi_alert_level,
+    meanNdvi: Number(raw.mean_ndvi),
+    shadeTreeCount: Number(raw.shade_tree_count),
+    acahualRemovalPost2020: Boolean(raw.acahual_removal_post_2020),
+    hasVerifiedCustfPermit: Boolean(raw.has_verified_custf_permit),
+  };
+}
+
+export async function fetchPersistedParcelsLive(): Promise<ParcelAdminOverview[]> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar base SQLite local`);
+  }
+  const data = (await res.json()) as { parcels: RawPersistedParcel[] };
+  return (data.parcels ?? []).map(mapRawParcelToOverview);
+}
+
+export async function toggleParcelCustfLive(parcelId: string): Promise<ParcelAdminOverview> {
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/custf`,
+    {
+      method: 'PATCH',
+      headers: { Accept: 'application/json' },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al actualizar CUSTF en SQLite`);
+  }
+  const data = (await res.json()) as { parcel: RawPersistedParcel };
+  return mapRawParcelToOverview(data.parcel);
+}
+
+export async function syncFieldParcelToSqliteLive(params: {
+  parcelId: string;
+  producerName: string;
+  municipality: string;
+  areaHectares: number;
+  shadeTreeCount: number;
+}): Promise<ParcelAdminOverview[]> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      last_pulled_at_ms: null,
+      pushed_parcels: [
+        {
+          parcel_id: params.parcelId,
+          producer_id: `PROD-${params.parcelId}`,
+          producer_name: params.producerName,
+          municipality: params.municipality,
+          area_hectares: params.areaHectares,
+          eudr_status: 'VERDE',
+          ndvi_alert_level: 'VIGOR_AGROFORESTAL_OPTIMO',
+          mean_ndvi: 0.81,
+          shade_tree_count: params.shadeTreeCount,
+          acahual_removal_post_2020: false,
+          has_verified_custf_permit: false,
+          coordinates: [
+            [-93.39, 17.85],
+            [-93.386, 17.85],
+            [-93.386, 17.8465],
+            [-93.39, 17.8465],
+          ],
+          updated_at_ms: Date.now(),
+        },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `Error HTTP ${res.status} al sincronizar parcela`);
+  }
+  const data = (await res.json()) as { remote_changed_parcels: RawPersistedParcel[] };
+  return (data.remote_changed_parcels ?? []).map(mapRawParcelToOverview);
 }

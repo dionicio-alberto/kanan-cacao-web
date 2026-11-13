@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import OperationsDashboard from '@/components/OperationsDashboard';
 import { INITIAL_PARCELS } from '@/services/demoParcels';
+import {
+  fetchPersistedParcelsLive,
+  syncFieldParcelToSqliteLive,
+  toggleParcelCustfLive,
+} from '@/services/geoEngineLiveClient';
 import { isSupabaseConfigured } from '@/services/supabaseClient';
 import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
@@ -40,17 +45,83 @@ export default function AdminDashboardPage() {
   const [activeRole, setActiveRole] = useState<WebUserRole>('admin_astra');
   const [parcels, setParcels] = useState<ParcelAdminOverview[]>(INITIAL_PARCELS);
   const [selectedParcelId, setSelectedParcelId] = useState<string>(INITIAL_PARCELS[0].parcelId);
+  const [sqliteConnected, setSqliteConnected] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncingFieldParcel, setSyncingFieldParcel] = useState<boolean>(false);
 
   const selectedParcel = parcels.find((p) => p.parcelId === selectedParcelId) ?? parcels[0];
   const supabaseLive = isSupabaseConfigured();
   const currentRoleMeta = ROLE_META[activeRole];
 
-  const toggleCustf = (parcelId: string) =>
+  useEffect(() => {
+    let active = true;
+    fetchPersistedParcelsLive()
+      .then((persisted) => {
+        if (active && persisted.length > 0) {
+          setParcels(persisted);
+          setSqliteConnected(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSqliteConnected(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleCustf = async (parcelId: string) => {
     setParcels((prev) =>
       prev.map((p) =>
         p.parcelId === parcelId ? { ...p, hasVerifiedCustfPermit: !p.hasVerifiedCustfPermit } : p,
       ),
     );
+    try {
+      const updated = await toggleParcelCustfLive(parcelId);
+      setParcels((prev) => prev.map((p) => (p.parcelId === parcelId ? updated : p)));
+      setSqliteConnected(true);
+    } catch {
+      // Keeps optimistic state when running without the local FastAPI backend.
+    }
+  };
+
+  const handleSimulateMobileSync = async () => {
+    setSyncingFieldParcel(true);
+    setSyncMessage(null);
+    setSyncError(null);
+    try {
+      const updatedList = await syncFieldParcelToSqliteLive({
+        parcelId: 'PAR-HUIMANGUILLO-04',
+        producerName: 'Ing. Sofía Méndez (Huimanguillo)',
+        municipality: 'Huimanguillo',
+        areaHectares: 2.9,
+        shadeTreeCount: 110,
+      });
+      setParcels(updatedList);
+      setSelectedParcelId('PAR-HUIMANGUILLO-04');
+      setSqliteConnected(true);
+      setSyncMessage(
+        'Sincronización diferencial completada: parcela PAR-HUIMANGUILLO-04 (2.9 ha) validada por el linter y guardada en SQLite.',
+      );
+    } catch (err) {
+      setSyncError(
+        err instanceof Error
+          ? `${err.message}. Verifica que Geo-Engine esté encendido en 127.0.0.1:8080.`
+          : String(err),
+      );
+    } finally {
+      setSyncingFieldParcel(false);
+    }
+  };
+
+  const storageBadgeText = supabaseLive
+    ? 'Origen: Supabase PostGIS en vivo'
+    : sqliteConnected
+      ? 'Origen: Base local SQLite activa (127.0.0.1:8080)'
+      : '[DATOS DE DEMOSTRACIÓN: Semilla Chontalpa]';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -112,9 +183,7 @@ export default function AdminDashboardPage() {
                   fontSize: '0.75rem',
                 }}
               >
-                {supabaseLive
-                  ? 'Origen: Supabase PostGIS en vivo'
-                  : '[DATOS DE DEMOSTRACIÓN: Semilla Chontalpa]'}
+                {storageBadgeText}
               </span>
             </div>
           </div>
@@ -273,70 +342,121 @@ export default function AdminDashboardPage() {
               paddingTop: 14,
               borderTop: `1px solid ${T.colors.borderSubtle}`,
               display: 'flex',
+              justifyContent: 'space-between',
               gap: 10,
               flexWrap: 'wrap',
               alignItems: 'center',
             }}
           >
-            <span
-              style={{
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                color: T.colors.textSecondary,
-                marginRight: 4,
-              }}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span
+                style={{
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  color: T.colors.textSecondary,
+                  marginRight: 4,
+                }}
+              >
+                Ir a sección:
+              </span>
+              <a
+                href="#padron-parcelas"
+                className="btn-control"
+                style={{
+                  textDecoration: 'none',
+                  minHeight: 44,
+                  padding: '8px 14px',
+                  fontSize: '0.85rem',
+                }}
+              >
+                1. Padrón EUDR y CUSTF
+              </a>
+              <a
+                href="#bascula-epcis"
+                className="btn-control"
+                style={{
+                  textDecoration: 'none',
+                  minHeight: 44,
+                  padding: '8px 14px',
+                  fontSize: '0.85rem',
+                }}
+              >
+                2. Báscula ciega y EPCIS 2.0
+              </a>
+              <a
+                href="#linter-cartografico"
+                className="btn-control"
+                style={{
+                  textDecoration: 'none',
+                  minHeight: 44,
+                  padding: '8px 14px',
+                  fontSize: '0.85rem',
+                }}
+              >
+                3. Linter topológico y TRACES NT
+              </a>
+              <a
+                href="#consolidacion-carbono"
+                className="btn-control"
+                style={{
+                  textDecoration: 'none',
+                  minHeight: 44,
+                  padding: '8px 14px',
+                  fontSize: '0.85rem',
+                }}
+              >
+                4. Lote comunitario de carbono
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSimulateMobileSync}
+              disabled={syncingFieldParcel}
+              className="btn-cacao"
+              style={{ fontSize: '0.85rem', padding: '8px 14px' }}
             >
-              Ir a sección:
-            </span>
-            <a
-              href="#padron-parcelas"
-              className="btn-control"
-              style={{
-                textDecoration: 'none',
-                minHeight: 44,
-                padding: '8px 14px',
-                fontSize: '0.85rem',
-              }}
-            >
-              1. Padrón EUDR y CUSTF
-            </a>
-            <a
-              href="#bascula-epcis"
-              className="btn-control"
-              style={{
-                textDecoration: 'none',
-                minHeight: 44,
-                padding: '8px 14px',
-                fontSize: '0.85rem',
-              }}
-            >
-              2. Báscula ciega y EPCIS 2.0
-            </a>
-            <a
-              href="#linter-cartografico"
-              className="btn-control"
-              style={{
-                textDecoration: 'none',
-                minHeight: 44,
-                padding: '8px 14px',
-                fontSize: '0.85rem',
-              }}
-            >
-              3. Linter topológico y TRACES NT
-            </a>
-            <a
-              href="#consolidacion-carbono"
-              className="btn-control"
-              style={{
-                textDecoration: 'none',
-                minHeight: 44,
-                padding: '8px 14px',
-                fontSize: '0.85rem',
-              }}
-            >
-              4. Lote comunitario de carbono
-            </a>
+              {syncingFieldParcel
+                ? 'Sincronizando con SQLite...'
+                : 'Sincronizar parcela capturada en app móvil (SQLite)'}
+            </button>
           </nav>
+
+          {syncMessage && (
+            <div
+              role="status"
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 6,
+                backgroundColor: T.colors.statusGreenBg,
+                border: '1px solid #15803D',
+                color: T.colors.statusGreen,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+              }}
+            >
+              {syncMessage}
+            </div>
+          )}
+
+          {syncError && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 6,
+                backgroundColor: T.colors.statusRedBg,
+                border: '1px solid #B91C1C',
+                color: T.colors.statusRed,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+              }}
+            >
+              {syncError}
+            </div>
+          )}
         </div>
       </header>
 
@@ -376,7 +496,7 @@ export default function AdminDashboardPage() {
         >
           <div>
             <strong style={{ color: T.colors.textPrimary }}>Kanan Cacao (ASTRA S.A.S.)</strong> ·
-            Arquitectura Offline-First con WatermelonDB, Supabase PostGIS y FastAPI.
+            Arquitectura Offline-First con WatermelonDB, SQLite/PostGIS y FastAPI.
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
             <span>Estándares activos: GeoJSON RFC 7946 · GS1 EPCIS 2.0 JSON-LD · UE 2023/1115</span>
