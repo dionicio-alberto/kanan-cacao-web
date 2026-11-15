@@ -6,6 +6,7 @@ export type NdviAlertLevel =
 
 export interface ParcelAdminOverview {
   parcelId: string;
+  parcelName?: string;
   producerId: string;
   producerName: string;
   municipality: string;
@@ -16,6 +17,7 @@ export interface ParcelAdminOverview {
   shadeTreeCount: number;
   acahualRemovalPost2020: boolean;
   hasVerifiedCustfPermit: boolean;
+  coordinates?: number[][];
 }
 
 export interface CustfAdminAuditSummary {

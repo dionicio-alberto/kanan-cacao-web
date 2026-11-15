@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import SentinelSatelliteCard from '@/components/SentinelSatelliteCard';
 import {
+  buildSatelliteOrthoExportUrl,
   GEO_ENGINE_BASE_URL,
   PRESET_POLYGONS,
   PresetPolygonKey,
+  projectCoordinatesToOrthoSvgPoints,
   projectCoordinatesToSvgPoints,
   requestTracesNtExportLive,
   TopologyValidationResponse,
@@ -30,6 +33,7 @@ function PolygonSvg({
   badgeBg,
   badgeColor,
   badgeBorder,
+  showSatelliteBackdrop = true,
 }: {
   coordinates: number[][];
   closeRing: boolean;
@@ -41,12 +45,20 @@ function PolygonSvg({
   badgeBg: string;
   badgeColor: string;
   badgeBorder: string;
+  showSatelliteBackdrop?: boolean;
 }) {
-  const points = projectCoordinatesToSvgPoints(coordinates, SVG_W, SVG_H);
-  const pointList = points.split(' ').map((pt) => {
-    const [x, y] = pt.split(',').map(Number);
-    return { x, y };
-  });
+  const orthoData = showSatelliteBackdrop
+    ? buildSatelliteOrthoExportUrl(coordinates, SVG_W * 2, SVG_H * 2)
+    : null;
+  const pointList = orthoData
+    ? projectCoordinatesToOrthoSvgPoints(coordinates, orthoData.extentBbox, SVG_W, SVG_H)
+    : projectCoordinatesToSvgPoints(coordinates, SVG_W, SVG_H)
+        .split(' ')
+        .map((pt) => {
+          const [x, y] = pt.split(',').map(Number);
+          return { x, y };
+        });
+  const points = pointList.map((pt) => `${pt.x},${pt.y}`).join(' ');
 
   return (
     <figure
@@ -105,6 +117,17 @@ function PolygonSvg({
           display: 'block',
         }}
       >
+        {orthoData ? (
+          <image
+            href={orthoData.orthoUrl}
+            x={0}
+            y={0}
+            width={SVG_W}
+            height={SVG_H}
+            preserveAspectRatio="none"
+            opacity={0.86}
+          />
+        ) : null}
         <g transform="translate(384, 28)" aria-hidden="true">
           <circle r="14" fill="#1E3A28" stroke="#B7C9BD" strokeWidth="1.2" />
           <text
@@ -156,13 +179,28 @@ function PolygonSvg({
 }
 
 export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOverview }) {
+  const [geometryMode, setGeometryMode] = useState<'PARCEL_POSTGIS' | 'PRESET'>('PARCEL_POSTGIS');
   const [presetKey, setPresetKey] = useState<PresetPolygonKey>('SELF_INTERSECTING_BOWTIE');
+  const [showSatelliteBackdrop, setShowSatelliteBackdrop] = useState<boolean>(true);
   const [report, setReport] = useState<TopologyValidationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    setReport(null);
+    setError(null);
+    setExportMsg(null);
+  }, [parcel.parcelId]);
+
   const preset = PRESET_POLYGONS[presetKey];
+  const hasParcelCoords = Array.isArray(parcel.coordinates) && parcel.coordinates.length >= 3;
+  const usingPostgisParcel = geometryMode === 'PARCEL_POSTGIS' && hasParcelCoords;
+  const activeCoordinates = usingPostgisParcel ? parcel.coordinates! : preset.coordinates;
+  const activeGeometryLabel = usingPostgisParcel
+    ? `Polígono PostGIS en vivo (${parcel.parcelName || parcel.parcelId})`
+    : preset.label;
+
   const custf = evaluateCustfAdminCompliance(parcel);
   const canExportTraces = parcel.eudrStatus === 'VERDE' && !custf.isProducerBlocked;
 
@@ -171,7 +209,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     setError(null);
     setReport(null);
     try {
-      setReport(await validateTopologyLive(parcel.parcelId, preset.coordinates));
+      setReport(await validateTopologyLive(parcel.parcelId, activeCoordinates));
     } catch (e) {
       setError(
         e instanceof Error
@@ -191,7 +229,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         parcelId: parcel.parcelId,
         producerId: parcel.producerId,
         municipality: parcel.municipality,
-        coordinates: report ? report.polygon.coordinates[0] : preset.coordinates,
+        coordinates: report ? report.polygon.coordinates[0] : activeCoordinates,
         eudrStatus: parcel.eudrStatus,
         acahualRemovalPost2020: parcel.acahualRemovalPost2020,
         hasVerifiedCustfPermit: parcel.hasVerifiedCustfPermit,
@@ -272,7 +310,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
       <div
         role="group"
-        aria-label="Seleccionar geometría de prueba para el linter"
+        aria-label="Seleccionar geometría y capa base satelital"
         style={{
           display: 'flex',
           gap: 10,
@@ -280,14 +318,36 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
           marginBottom: 12,
         }}
       >
+        <button
+          type="button"
+          aria-pressed={usingPostgisParcel}
+          disabled={!hasParcelCoords}
+          onClick={() => {
+            setGeometryMode('PARCEL_POSTGIS');
+            setReport(null);
+            setError(null);
+            setExportMsg(null);
+          }}
+          className="btn-control"
+          style={{
+            backgroundColor: usingPostgisParcel ? T.colors.primaryGreen : T.colors.surfaceCard,
+            color: usingPostgisParcel ? '#FFFFFF' : T.colors.textPrimary,
+            borderColor: usingPostgisParcel ? T.colors.primaryGreen : T.colors.borderControl,
+            opacity: hasParcelCoords ? 1 : 0.6,
+          }}
+        >
+          Polígono real PostGIS de parcela
+        </button>
+
         {(Object.keys(PRESET_POLYGONS) as PresetPolygonKey[]).map((key) => {
-          const isSelected = presetKey === key;
+          const isSelected = geometryMode === 'PRESET' && presetKey === key;
           return (
             <button
               key={key}
               type="button"
               aria-pressed={isSelected}
               onClick={() => {
+                setGeometryMode('PRESET');
                 setPresetKey(key);
                 setReport(null);
                 setError(null);
@@ -304,6 +364,23 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             </button>
           );
         })}
+
+        <button
+          type="button"
+          aria-pressed={showSatelliteBackdrop}
+          onClick={() => setShowSatelliteBackdrop((prev) => !prev)}
+          className="btn-control"
+          style={{
+            marginLeft: 'auto',
+            backgroundColor: showSatelliteBackdrop ? T.colors.earthCacao : T.colors.surfaceCard,
+            color: showSatelliteBackdrop ? '#FFFFFF' : T.colors.textPrimary,
+            borderColor: showSatelliteBackdrop ? T.colors.earthCacao : T.colors.borderControl,
+          }}
+        >
+          {showSatelliteBackdrop
+            ? 'Ortofoto Satelital Real (Esri World Imagery)'
+            : 'Fondo Vectorial Oscuro'}
+        </button>
       </div>
 
       <p
@@ -319,21 +396,33 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
           fontWeight: 600,
         }}
       >
-        Escenario activo: {preset.description}
+        Escenario activo:{' '}
+        {usingPostgisParcel
+          ? `Geometría georeferenciada desde Supabase PostGIS para ${parcel.parcelName || parcel.producerName} (${parcel.municipality}, ${parcel.areaHectares} ha).`
+          : preset.description}
       </p>
+
+      <div style={{ marginBottom: 18 }}>
+        <SentinelSatelliteCard
+          parcel={parcel}
+          coordinates={activeCoordinates}
+          geometrySourceLabel={activeGeometryLabel}
+        />
+      </div>
 
       <div className="dual-canvas-grid" style={{ marginBottom: 18 }}>
         <PolygonSvg
           title="Antes: trazo GPS crudo de campo"
-          subtitle={`${preset.coordinates.length} vértices capturados sin validación topológica`}
+          subtitle={`${activeCoordinates.length} vértices · ${activeGeometryLabel}`}
           badgeText="Anillo crudo"
           badgeBg={T.colors.statusRedBg}
           badgeColor={T.colors.statusRed}
           badgeBorder="#B91C1C"
-          coordinates={preset.coordinates}
+          coordinates={activeCoordinates}
           closeRing={false}
           stroke="#FCA5A5"
           fill="none"
+          showSatelliteBackdrop={showSatelliteBackdrop}
         />
 
         {loading && (
@@ -374,6 +463,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             closeRing
             stroke="#86EFAC"
             fill="rgba(134, 239, 172, 0.22)"
+            showSatelliteBackdrop={showSatelliteBackdrop}
           />
         )}
 
