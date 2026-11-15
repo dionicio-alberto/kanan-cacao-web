@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { processScaleReceptionByRole } from '@/services/blindScaleAndTracesService';
+import { isSupabaseConfigured } from '@/services/supabaseClient';
 import {
   consolidateCarbonClusterWeb,
   EudrStatus,
@@ -144,7 +145,7 @@ export default function OperationsDashboard({
                 color: T.colors.textSecondary,
               }}
             >
-              [DATOS DE DEMOSTRACIÓN]
+              {isSupabaseConfigured() ? '[ACTIVO: SUPABASE POSTGIS]' : '[DATOS DE DEMOSTRACIÓN]'}
             </span>
           </div>
 
