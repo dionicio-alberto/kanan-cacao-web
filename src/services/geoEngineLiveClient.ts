@@ -4,8 +4,12 @@ import {
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
 
-export const GEO_ENGINE_BASE_URL =
-  process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ?? 'http://127.0.0.1:8080';
+const rawGeoEngineUrl =
+  process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ||
+  process.env.NEXT_PUBLIC_GEO_ENGINE_URL ||
+  'https://kanan-cacao-geo-engine-production.up.railway.app';
+
+export const GEO_ENGINE_BASE_URL = rawGeoEngineUrl.replace(/\/+$/, '');
 
 export type PresetPolygonKey = 'CLEAN_COMALCALCO' | 'SELF_INTERSECTING_BOWTIE';
 
