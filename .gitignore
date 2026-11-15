@@ -12,3 +12,12 @@ coverage/
 .idea/
 *.tsbuildinfo
 next-env.d.ts
+
+# Local AI agent tooling & skills
+.agents/
+.claude/
+.cursor/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+

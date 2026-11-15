@@ -145,6 +145,7 @@ export async function requestTracesNtExportLive(params: {
 
 interface RawPersistedParcel {
   parcel_id: string;
+  parcel_name?: string;
   producer_id: string;
   producer_name: string;
   municipality: string;
@@ -155,11 +156,165 @@ interface RawPersistedParcel {
   shade_tree_count: number;
   acahual_removal_post_2020: boolean;
   has_verified_custf_permit: boolean;
+  coordinates?: number[][];
+}
+
+export interface PersistedParcelsWithMeta {
+  storageEngine: string;
+  parcels: ParcelAdminOverview[];
+}
+
+export interface LiveSentinel2SceneResponse {
+  parcel_id: string;
+  source_mode: 'live_stac' | 'fallback_cache';
+  collection: string;
+  latest_scene_id: string;
+  captured_at_iso: string;
+  cloud_cover_pct: number;
+  platform: string;
+  mgrs_tile: string;
+  sentinel_preview_url: string | null;
+  stac_item_url: string | null;
+  satellite_ortho_url: string;
+  bbox: [number, number, number, number];
+  area_hectares: number;
+}
+
+export type GeoBboxTuple = [number, number, number, number];
+
+export function computePaddedGeoBbox(
+  coordinates: number[][],
+  padFactor = 0.45,
+  minPadDeg = 0.0025
+): GeoBboxTuple {
+  if (!coordinates || coordinates.length === 0) {
+    return [-93.29, 18.248, -93.276, 18.258];
+  }
+  const lngs = coordinates.map((pt) => pt[0]);
+  const lats = coordinates.map((pt) => pt[1]);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const spanLng = Math.max(maxLng - minLng, 0.001);
+  const spanLat = Math.max(maxLat - minLat, 0.001);
+  const padLng = Math.max(spanLng * padFactor, minPadDeg);
+  const padLat = Math.max(spanLat * padFactor, minPadDeg);
+  return [
+    Number((minLng - padLng).toFixed(6)),
+    Number((minLat - padLat).toFixed(6)),
+    Number((maxLng + padLng).toFixed(6)),
+    Number((maxLat + padLat).toFixed(6)),
+  ];
+}
+
+export function fitBboxToAspectRatio(
+  bbox: GeoBboxTuple,
+  targetAspectRatio: number
+): GeoBboxTuple {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const spanLng = Math.max(maxLng - minLng, 1e-6);
+  const spanLat = Math.max(maxLat - minLat, 1e-6);
+  const centerLng = (minLng + maxLng) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+  const currentAspect = spanLng / spanLat;
+
+  if (currentAspect < targetAspectRatio) {
+    const halfLng = (spanLat * targetAspectRatio) / 2;
+    return [
+      Number((centerLng - halfLng).toFixed(6)),
+      minLat,
+      Number((centerLng + halfLng).toFixed(6)),
+      maxLat,
+    ];
+  }
+
+  const halfLat = spanLng / targetAspectRatio / 2;
+  return [
+    minLng,
+    Number((centerLat - halfLat).toFixed(6)),
+    maxLng,
+    Number((centerLat + halfLat).toFixed(6)),
+  ];
+}
+
+export function buildSatelliteOrthoExportUrl(
+  coordinates: number[][],
+  imgWidth = 840,
+  imgHeight = 480
+): { orthoUrl: string; extentBbox: GeoBboxTuple } {
+  const rawBbox = computePaddedGeoBbox(coordinates);
+  const extentBbox = fitBboxToAspectRatio(rawBbox, imgWidth / imgHeight);
+  const [minLng, minLat, maxLng, maxLat] = extentBbox;
+  const orthoUrl =
+    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export' +
+    `?bbox=${minLng},${minLat},${maxLng},${maxLat}` +
+    `&bboxSR=4326&imageSR=4326&size=${imgWidth},${imgHeight}&format=jpg&f=image`;
+  return { orthoUrl, extentBbox };
+}
+
+export function projectCoordinatesToOrthoSvgPoints(
+  coordinates: number[][],
+  extentBbox: GeoBboxTuple,
+  width = 420,
+  height = 240
+): Array<{ x: number; y: number }> {
+  if (!coordinates || coordinates.length === 0) return [];
+  const [minLng, minLat, maxLng, maxLat] = extentBbox;
+  const spanLng = Math.max(maxLng - minLng, 1e-9);
+  const spanLat = Math.max(maxLat - minLat, 1e-9);
+
+  return coordinates.map(([lng, lat]) => ({
+    x: Number((((lng - minLng) / spanLng) * width).toFixed(2)),
+    y: Number((((maxLat - lat) / spanLat) * height).toFixed(2)),
+  }));
+}
+
+export async function fetchPersistedParcelsWithMeta(): Promise<PersistedParcelsWithMeta> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`No se pudieron leer parcelas desde el geo-engine: HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    storage_engine?: string;
+    parcels?: RawPersistedParcel[];
+  };
+  const parcels = (data.parcels ?? []).map((raw) => ({
+    ...mapRawParcelToOverview(raw),
+    parcelName: raw.parcel_name,
+    coordinates: raw.coordinates,
+  }));
+  return {
+    storageEngine: data.storage_engine || 'sqlite3_local',
+    parcels,
+  };
+}
+
+export async function fetchLiveSentinel2Scene(
+  parcelId: string,
+  coordinates: number[][]
+): Promise<LiveSentinel2SceneResponse> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/audits/sentinel2-live`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      parcel_id: parcelId,
+      coordinates,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`No se pudo consultar escena Sentinel-2: HTTP ${res.status}`);
+  }
+  return (await res.json()) as LiveSentinel2SceneResponse;
 }
 
 function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
   return {
     parcelId: raw.parcel_id,
+    parcelName: raw.parcel_name,
     producerId: raw.producer_id,
     producerName: raw.producer_name,
     municipality: raw.municipality,
@@ -170,6 +325,7 @@ function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
     shadeTreeCount: Number(raw.shade_tree_count),
     acahualRemovalPost2020: Boolean(raw.acahual_removal_post_2020),
     hasVerifiedCustfPermit: Boolean(raw.has_verified_custf_permit),
+    coordinates: raw.coordinates,
   };
 }
 
@@ -202,10 +358,13 @@ export async function toggleParcelCustfLive(parcelId: string): Promise<ParcelAdm
 
 export async function syncFieldParcelToSqliteLive(params: {
   parcelId: string;
+  parcelName?: string;
+  producerId?: string;
   producerName: string;
   municipality: string;
   areaHectares: number;
   shadeTreeCount: number;
+  coordinates?: number[][];
 }): Promise<ParcelAdminOverview[]> {
   const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels/sync`, {
     method: 'POST',
@@ -215,7 +374,8 @@ export async function syncFieldParcelToSqliteLive(params: {
       pushed_parcels: [
         {
           parcel_id: params.parcelId,
-          producer_id: `PROD-${params.parcelId}`,
+          parcel_name: params.parcelName ?? params.producerName,
+          producer_id: params.producerId ?? '11111111-1111-4111-8111-111111111111',
           producer_name: params.producerName,
           municipality: params.municipality,
           area_hectares: params.areaHectares,
@@ -225,11 +385,12 @@ export async function syncFieldParcelToSqliteLive(params: {
           shade_tree_count: params.shadeTreeCount,
           acahual_removal_post_2020: false,
           has_verified_custf_permit: false,
-          coordinates: [
+          coordinates: params.coordinates ?? [
             [-93.39, 17.85],
             [-93.386, 17.85],
             [-93.386, 17.8465],
             [-93.39, 17.8465],
+            [-93.39, 17.85],
           ],
           updated_at_ms: Date.now(),
         },
