@@ -3,13 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import OperationsDashboard from '@/components/OperationsDashboard';
+import SupabaseLoginWall from '@/components/SupabaseLoginWall';
 import { INITIAL_PARCELS } from '@/services/demoParcels';
 import {
-  fetchPersistedParcelsLive,
+  fetchPersistedParcelsWithMeta,
   syncFieldParcelToSqliteLive,
   toggleParcelCustfLive,
 } from '@/services/geoEngineLiveClient';
-import { isSupabaseConfigured } from '@/services/supabaseClient';
+import {
+  AuthenticatedOperatorProfile,
+  getActiveSupabaseSession,
+  isSupabaseConfigured,
+  signOutSupabaseSession,
+} from '@/services/supabaseClient';
 import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 import { WEB_DOMAIN_CONSTANTS, WebUserRole } from '@/types/adminDomain';
@@ -43,9 +49,12 @@ const ROLE_META: Record<
 
 export default function AdminDashboardPage() {
   const [activeRole, setActiveRole] = useState<WebUserRole>('admin_astra');
+  const [operatorProfile, setOperatorProfile] = useState<AuthenticatedOperatorProfile | null>(null);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
   const [parcels, setParcels] = useState<ParcelAdminOverview[]>(INITIAL_PARCELS);
   const [selectedParcelId, setSelectedParcelId] = useState<string>(INITIAL_PARCELS[0].parcelId);
   const [sqliteConnected, setSqliteConnected] = useState<boolean>(false);
+  const [storageEngine, setStorageEngine] = useState<string>('demo');
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncingFieldParcel, setSyncingFieldParcel] = useState<boolean>(false);
@@ -56,11 +65,34 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     let active = true;
-    fetchPersistedParcelsLive()
-      .then((persisted) => {
+
+    if (supabaseLive) {
+      getActiveSupabaseSession()
+        .then((session) => {
+          if (active && session) {
+            setOperatorProfile(session);
+            setActiveRole(session.role);
+          }
+        })
+        .catch(() => {
+          // Keep null session when token is missing or expired.
+        })
+        .finally(() => {
+          if (active) {
+            setAuthChecked(true);
+          }
+        });
+    } else {
+      setAuthChecked(true);
+    }
+
+    fetchPersistedParcelsWithMeta()
+      .then(({ storageEngine: engine, parcels: persisted }) => {
         if (active && persisted.length > 0) {
           setParcels(persisted);
+          setSelectedParcelId(persisted[0].parcelId);
           setSqliteConnected(true);
+          setStorageEngine(engine);
         }
       })
       .catch(() => {
@@ -71,7 +103,7 @@ export default function AdminDashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [supabaseLive]);
 
   const toggleCustf = async (parcelId: string) => {
     setParcels((prev) =>
@@ -92,24 +124,28 @@ export default function AdminDashboardPage() {
     setSyncingFieldParcel(true);
     setSyncMessage(null);
     setSyncError(null);
+    const mobileParcelId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
     try {
       const updatedList = await syncFieldParcelToSqliteLive({
-        parcelId: 'PAR-HUIMANGUILLO-04',
+        parcelId: mobileParcelId,
+        parcelName: 'Finca San José (Huimanguillo)',
+        producerId: '11111111-1111-4111-8111-111111111111',
         producerName: 'Ing. Sofía Méndez (Huimanguillo)',
         municipality: 'Huimanguillo',
         areaHectares: 2.9,
         shadeTreeCount: 110,
       });
       setParcels(updatedList);
-      setSelectedParcelId('PAR-HUIMANGUILLO-04');
+      setSelectedParcelId(mobileParcelId);
       setSqliteConnected(true);
+      const engineLabel = storageEngine === 'supabase_postgis' ? 'Supabase PostGIS' : 'SQLite';
       setSyncMessage(
-        'Sincronización diferencial completada: parcela PAR-HUIMANGUILLO-04 (2.9 ha) validada por el linter y guardada en SQLite.',
+        `Sincronización diferencial completada: parcela Finca San José (Huimanguillo) (2.9 ha) validada por el linter y guardada en ${engineLabel}.`,
       );
     } catch (err) {
       setSyncError(
         err instanceof Error
-          ? `${err.message}. Verifica que Geo-Engine esté encendido en 127.0.0.1:8080.`
+          ? `${err.message}. Verifica la conexión con el motor Geo-Engine.`
           : String(err),
       );
     } finally {
@@ -117,11 +153,42 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const storageBadgeText = supabaseLive
-    ? 'Origen: Supabase PostGIS en vivo'
-    : sqliteConnected
-      ? 'Origen: Base local SQLite activa (127.0.0.1:8080)'
-      : '[DATOS DE DEMOSTRACIÓN: Semilla Chontalpa]';
+  const storageBadgeText =
+    storageEngine === 'supabase_postgis' || supabaseLive
+      ? 'Origen: Supabase PostGIS en vivo'
+      : sqliteConnected
+        ? 'Origen: Base local SQLite activa (127.0.0.1:8080)'
+        : '[DATOS DE DEMOSTRACIÓN: Semilla Chontalpa]';
+
+  if (supabaseLive && !authChecked) {
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          backgroundColor: T.colors.backgroundPrimary,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          color: T.colors.primaryGreen,
+          fontWeight: 700,
+        }}
+      >
+        Verificando sesión en Supabase Auth...
+      </main>
+    );
+  }
+
+  if (supabaseLive && !operatorProfile) {
+    return (
+      <SupabaseLoginWall
+        onAuthenticated={(profile) => {
+          setOperatorProfile(profile);
+          setActiveRole(profile.role);
+        }}
+      />
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -185,6 +252,43 @@ export default function AdminDashboardPage() {
               >
                 {storageBadgeText}
               </span>
+
+              {operatorProfile ? (
+                <>
+                  <span
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                      color: '#FFFFFF',
+                      padding: '3px 10px',
+                      borderRadius: 4,
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                    }}
+                  >
+                    {operatorProfile.fullName} ({operatorProfile.email})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await signOutSupabaseSession();
+                      setOperatorProfile(null);
+                    }}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      color: T.colors.earthCacao,
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cerrar sesión
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -417,8 +521,8 @@ export default function AdminDashboardPage() {
               style={{ fontSize: '0.85rem', padding: '8px 14px' }}
             >
               {syncingFieldParcel
-                ? 'Sincronizando con SQLite...'
-                : 'Sincronizar parcela capturada en app móvil (SQLite)'}
+                ? 'Sincronizando parcela con PostGIS...'
+                : 'Sincronizar parcela capturada en app móvil (PostGIS)'}
             </button>
           </nav>
 

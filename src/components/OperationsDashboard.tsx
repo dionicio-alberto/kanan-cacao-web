@@ -292,13 +292,29 @@ export default function OperationsDashboard({
                             backgroundColor:
                               p.eudrStatus === 'VERDE'
                                 ? T.colors.statusGreenBg
-                                : T.colors.statusRedBg,
+                                : p.eudrStatus === 'PENDIENTE_REVISION'
+                                  ? T.colors.statusWarningBg
+                                  : T.colors.statusRedBg,
                             color:
-                              p.eudrStatus === 'VERDE' ? T.colors.statusGreen : T.colors.statusRed,
-                            border: `1px solid ${p.eudrStatus === 'VERDE' ? '#15803D' : '#B91C1C'}`,
+                              p.eudrStatus === 'VERDE'
+                                ? T.colors.statusGreen
+                                : p.eudrStatus === 'PENDIENTE_REVISION'
+                                  ? T.colors.statusWarning
+                                  : T.colors.statusRed,
+                            border: `1px solid ${
+                              p.eudrStatus === 'VERDE'
+                                ? '#15803D'
+                                : p.eudrStatus === 'PENDIENTE_REVISION'
+                                  ? '#B45309'
+                                  : '#B91C1C'
+                            }`,
                           }}
                         >
-                          {p.eudrStatus === 'VERDE' ? 'EUDR VERDE' : 'ALERTA EUDR ROJO'}
+                          {p.eudrStatus === 'VERDE'
+                            ? 'EUDR VERDE'
+                            : p.eudrStatus === 'PENDIENTE_REVISION'
+                              ? 'EN REVISIÓN'
+                              : 'ALERTA EUDR ROJO'}
                         </span>
                       </div>
 
