@@ -1,7 +1,7 @@
 # AI-DLC Framework · Estado Actual Consolidado (`kanan-cacao-web`)
 
 **Repositorio:** `kanan-cacao-web` (Next.js App Router + Vercel + Cliente Geoespacial + Supabase Auth)  
-**Última actualización:** `16/11/2026` · **Versión activa:** `v0.14.1`
+**Última actualización:** `16/11/2026` · **Versión activa:** `v0.14.2`
 
 ---
 
@@ -22,7 +22,8 @@
 | **Carga & Multitemporal** | `v0.13.1`     | [`11-georef-loading-and-satellite-multitemporal-spec.md`](./11-georef-loading-and-satellite-multitemporal-spec.md) | Completado              | Indicador de carga visual y accesible (spinner + tarjeta informativa) al guardar parcelas y auditoría de resolución multitemporal en satélites.                                                                                |
 | **Estándar Sentinel-2**   | `v0.13.2`     | [`12-sentinel2-standardization-spec.md`](./12-sentinel2-standardization-spec.md)                                   | Completado (`main`)     | Estandarización soberana y exclusiva en la constelación Copernicus Sentinel-2 (ESA) para todas las tomas multitemporales y mapas interactivos (gratis y revisita cada 5 días).                                                 |
 | **Histórico Puro S2**     | `v0.14.0`     | [`13-sentinel2-pure-historic-fix-spec.md`](./13-sentinel2-pure-historic-fix-spec.md)                               | Completado (`main`)     | Selector interactivo (`s2cloudless-2024_3857`) y respaldos cliente 100 % Copernicus Sentinel-2 (`s2cloudless-2025..2019`), sincronizados con `v11_sentinel2_pure`.                                                             |
-| **Zoom Óptimo + S2 HD**   | **`v0.14.1`** | [`14-optimal-zoom-and-s2-hd-spec.md`](./14-optimal-zoom-and-s2-hd-spec.md)                                         | **Completado (`main`)** | Sincronización de zoom óptimo variable por hectáreas (`fill_ratio = 0.58`) y visualización Full HD `1520×840` (`v12_s2_hpf_hd`) sobre Sentinel-2 L2A.                                                                          |
+| **Zoom Óptimo + S2 HD**   | `v0.14.1`     | [`14-optimal-zoom-and-s2-hd-spec.md`](./14-optimal-zoom-and-s2-hd-spec.md)                                         | Completado (`main`)     | Sincronización de zoom óptimo variable por hectáreas (`fill_ratio = 0.58`) y visualización `1520×840` (`v12_s2_hpf_hd`).                                                                                                       |
+| **Sentinel-2 Puro**       | **`v0.14.2`** | [`15-pure-sentinel2-quality-spec.md`](./15-pure-sentinel2-quality-spec.md)                                         | **Completado (`main`)** | Capturas 100 % puras de **Copernicus Sentinel-2 L2A** sin filtros ni fusiones estáticas (`v13_s2_pure_quality` / `s2v13_`), alineadas al sub-píxel y libres de bruma/nubes en las 7 fechas históricas.                         |
 
 ---
 
