@@ -201,4 +201,26 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(isAmazonRegistrationConfirmValid('confirmar')).toBe(true);
   expect(isAmazonRegistrationConfirmValid(' CONFIRMAR ')).toBe(true);
   expect(isAmazonRegistrationConfirmValid('si')).toBe(false);
+
+  const { computeOptimalParcelZoom } = await import('@/services/geoEngineLiveClient');
+  const { zoom: zoomTiny } = computeOptimalParcelZoom([
+    [-93.391, 18.034],
+    [-93.3905, 18.034],
+    [-93.3905, 18.0335],
+    [-93.391, 18.0335],
+  ]);
+  const { zoom: zoomCarrizal } = computeOptimalParcelZoom([
+    [-93.3916, 18.0342],
+    [-93.3906, 18.0342],
+    [-93.3906, 18.0328],
+    [-93.3916, 18.0328],
+  ]);
+  const { zoom: zoomLarge } = computeOptimalParcelZoom([
+    [-93.398, 18.04],
+    [-93.385, 18.04],
+    [-93.385, 18.028],
+    [-93.398, 18.028],
+  ]);
+  expect(zoomTiny).toBeGreaterThan(zoomCarrizal);
+  expect(zoomCarrizal).toBeGreaterThan(zoomLarge);
 });

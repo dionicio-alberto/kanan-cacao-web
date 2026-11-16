@@ -383,10 +383,13 @@ function latLngToWebMercatorTile(
   return { row, col };
 }
 
-export function computeCenteredWaybackViewport(
+export function computeOptimalParcelZoom(
   coordinates: number[][],
   viewW = 760,
   viewH = 420,
+  fillRatio = 0.58,
+  minZoom = 12.5,
+  maxZoom = 18.2,
 ): { centerLat: number; centerLng: number; zoom: number } {
   if (!coordinates || coordinates.length === 0) {
     return { centerLat: 18.2545, centerLng: -93.2825, zoom: 16 };
@@ -400,14 +403,24 @@ export function computeCenteredWaybackViewport(
   const centerLng = (minLng + maxLng) / 2;
   const centerLat = (minLat + maxLat) / 2;
 
-  for (let z = 17; z >= 14; z -= 1) {
-    const tl = latLngToWorldPx(maxLat, minLng, z);
-    const br = latLngToWorldPx(minLat, maxLng, z);
-    if (Math.abs(br.x - tl.x) <= viewW * 0.52 && Math.abs(br.y - tl.y) <= viewH * 0.52) {
-      return { centerLat, centerLng, zoom: z };
-    }
-  }
-  return { centerLat, centerLng, zoom: 14 };
+  const tl0 = latLngToWorldPx(maxLat, minLng, 0);
+  const br0 = latLngToWorldPx(minLat, maxLng, 0);
+  const spanX0 = Math.max(Math.abs(br0.x - tl0.x), 1e-7);
+  const spanY0 = Math.max(Math.abs(br0.y - tl0.y), 1e-7);
+
+  const zoomX = Math.log2((viewW * fillRatio) / spanX0);
+  const zoomY = Math.log2((viewH * fillRatio) / spanY0);
+  const rawZoom = Math.min(zoomX, zoomY);
+  const clamped = Math.max(minZoom, Math.min(maxZoom, Math.round(rawZoom * 100) / 100));
+  return { centerLat, centerLng, zoom: clamped };
+}
+
+export function computeCenteredWaybackViewport(
+  coordinates: number[][],
+  viewW = 760,
+  viewH = 420,
+): { centerLat: number; centerLng: number; zoom: number } {
+  return computeOptimalParcelZoom(coordinates, viewW, viewH);
 }
 
 export function computeWaybackTileLayout(
@@ -424,16 +437,20 @@ export function computeWaybackTileLayout(
   heightPct: number;
 }> {
   const tileSize = 256;
-  const { centerLat, centerLng, zoom } = computeCenteredWaybackViewport(coordinates, viewW, viewH);
-  const centerWorld = latLngToWorldPx(centerLat, centerLng, zoom);
-  const topLeftX = centerWorld.x - viewW / 2;
-  const topLeftY = centerWorld.y - viewH / 2;
-  const maxTile = Math.pow(2, zoom) - 1;
+  const { centerLat, centerLng, zoom } = computeOptimalParcelZoom(coordinates, viewW, viewH);
+  const fetchZoom = Math.min(17, Math.max(13, Math.floor(zoom)));
+  const scaleFactor = Math.pow(2, zoom - fetchZoom);
+  const centerFetchWorld = latLngToWorldPx(centerLat, centerLng, fetchZoom);
+  const topLeftX = centerFetchWorld.x - viewW / (2 * scaleFactor);
+  const topLeftY = centerFetchWorld.y - viewH / (2 * scaleFactor);
+  const viewFetchW = viewW / scaleFactor;
+  const viewFetchH = viewH / scaleFactor;
+  const maxTile = Math.pow(2, fetchZoom) - 1;
 
   const minTx = Math.max(0, Math.floor(topLeftX / tileSize));
-  const maxTx = Math.min(maxTile, Math.floor((topLeftX + viewW) / tileSize));
+  const maxTx = Math.min(maxTile, Math.floor((topLeftX + viewFetchW) / tileSize));
   const minTy = Math.max(0, Math.floor(topLeftY / tileSize));
-  const maxTy = Math.min(maxTile, Math.floor((topLeftY + viewH) / tileSize));
+  const maxTy = Math.min(maxTile, Math.floor((topLeftY + viewFetchH) / tileSize));
 
   const tiles: Array<{
     key: string;
@@ -447,17 +464,17 @@ export function computeWaybackTileLayout(
   for (let tx = minTx; tx <= maxTx; tx += 1) {
     for (let ty = minTy; ty <= maxTy; ty += 1) {
       const tileUrl = waybackRelease.startsWith('mpc:')
-        ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/${zoom}/${tx}/${ty}.png?collection=sentinel-2-l2a&item=${encodeURIComponent(waybackRelease.slice(4))}&assets=visual&asset_bidx=visual%7C1,2,3`
+        ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/${fetchZoom}/${tx}/${ty}.png?collection=sentinel-2-l2a&item=${encodeURIComponent(waybackRelease.slice(4))}&assets=visual&asset_bidx=visual%7C1,2,3`
         : waybackRelease.startsWith('s2cloudless-')
-          ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${zoom}/${ty}/${tx}.jpg`
-          : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`;
+          ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${fetchZoom}/${ty}/${tx}.jpg`
+          : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${fetchZoom}/${ty}/${tx}`;
       tiles.push({
-        key: `${waybackRelease}-${zoom}-${tx}-${ty}`,
+        key: `${waybackRelease}-${fetchZoom}-${tx}-${ty}`,
         url: tileUrl,
-        leftPct: ((tx * tileSize - topLeftX) / viewW) * 100,
-        topPct: ((ty * tileSize - topLeftY) / viewH) * 100,
-        widthPct: (tileSize / viewW) * 100,
-        heightPct: (tileSize / viewH) * 100,
+        leftPct: (((tx * tileSize - topLeftX) * scaleFactor) / viewW) * 100,
+        topPct: (((ty * tileSize - topLeftY) * scaleFactor) / viewH) * 100,
+        widthPct: ((tileSize * scaleFactor) / viewW) * 100,
+        heightPct: ((tileSize * scaleFactor) / viewH) * 100,
       });
     }
   }
