@@ -21,7 +21,7 @@
    - `Cosecha y Acopio` (`cosecha`): Control de corte en finca, fermentación y secado + **Mesa de Acopio** en báscula con emisión de comprobante digital de entrega.
    - `Bonos de Carbono` (`carbono`): Inventario de árboles de sombra y consolidación comunitaria para acceder a apoyos ambientales.
 4. **Lenguaje 100% Accesible para el Productor:**
-   - En toda la experiencia dirigida al productor se omiten siglas técnicas (`EUDR`, `NDVI`, `CUSTF`, `GS1 EPCIS 2.0`, `RFC 7946`, `TRACES NT`) y se traducen a conceptos cotidianos: *salud y verdor del cacaotal*, *linderos de parcela al día*, *papeles de la parcela*, *comprobante digital de entrega* y *expediente de origen*.
+   - En toda la experiencia dirigida al productor se omiten siglas técnicas (`EUDR`, `NDVI`, `CUSTF`, `GS1 EPCIS 2.0`, `RFC 7946`, `TRACES NT`) y se traducen a conceptos cotidianos: _salud y verdor del cacaotal_, _linderos de parcela al día_, _papeles de la parcela_, _comprobante digital de entrega_ y _expediente de origen_.
 
 ---
 
@@ -32,7 +32,7 @@
 2. **Mapa Interactivo de Selección de Nuevas Parcelas ([InteractiveParcelMapPicker.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/InteractiveParcelMapPicker.tsx)):**
    - Mosaicos Web Mercator con cambio entre **Mapa Satelital** y **Mapa de Tráfico y Caminos**, botones para **Acercar / Alejar**, desplazamiento direccional y arrastre, botón **GPS para centrar ubicación actual**, selección de esquinas mediante **clics sobre el mapa** y corrección automática de linderos durante el trazado.
 3. **Historial Centrado de 5 Años y Guardado Único en Servidor:**
-   - En `kanan-cacao-geo-engine`, al crear o consultar una parcela por primera vez se calculan los linderos y se persiste en **Supabase PostGIS** el manifiesto de **7 tomas históricas** (*Última foto al registro*, *Hace 6 meses*, *1 año*, *2 años*, *3 años*, *4 años* y *5 años*) junto con caché de ortofoto en disco (`GET /api/v1/parcels/{parcel_id}/historical-image/{period_key}`), evitando recomputar la georreferencia en consultas posteriores.
+   - En `kanan-cacao-geo-engine`, al crear o consultar una parcela por primera vez se calculan los linderos y se persiste en **Supabase PostGIS** el manifiesto de **7 tomas históricas** (_Última foto al registro_, _Hace 6 meses_, _1 año_, _2 años_, _3 años_, _4 años_ y _5 años_) junto con caché de ortofoto en disco (`GET /api/v1/parcels/{parcel_id}/historical-image/{period_key}`), evitando recomputar la georreferencia en consultas posteriores.
    - En [LiveGeoEnginePanel.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/LiveGeoEnginePanel.tsx), se eliminaron los ejemplos técnicos y códigos de escena satelital (`S2B_...`), mostrando únicamente el visor centrado de los últimos 5 años.
 
 ---

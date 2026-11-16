@@ -31,12 +31,12 @@ export default function DashboardHomeModule({
   onNavigate,
 }: DashboardHomeModuleProps) {
   const totalHectares = Number(
-    parcels.reduce((acc, item) => acc + item.areaHectares, 0).toFixed(2)
+    parcels.reduce((acc, item) => acc + item.areaHectares, 0).toFixed(2),
   );
   const totalShadeTrees = parcels.reduce((acc, item) => acc + item.shadeTreeCount, 0);
   const totalPhotos = fieldLogs.reduce((acc, log) => acc + log.photos.length, 0);
   const totalHarvestWetKg = Number(
-    harvestEntries.reduce((acc, item) => acc + item.wetWeightKg, 0).toFixed(1)
+    harvestEntries.reduce((acc, item) => acc + item.wetWeightKg, 0).toFixed(1),
   );
   const cluster = consolidateCarbonClusterWeb({
     clusterId: 'LOTE-TABASCO-01',
@@ -134,11 +134,7 @@ export default function DashboardHomeModule({
             </h1>
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => onNavigate('parcelas')}
-          >
+          <button type="button" className="btn-primary" onClick={() => onNavigate('parcelas')}>
             ➕ Registrar nueva georreferencia
           </button>
         </div>
@@ -241,8 +237,8 @@ export default function DashboardHomeModule({
             PARCELA SELECCIONADA ACTUALMENTE
           </span>
           <strong style={{ fontSize: '1.08rem', color: T.colors.textPrimary }}>
-            {selectedParcel.parcelName || selectedParcel.producerName} — {selectedParcel.municipality}{' '}
-            ({selectedParcel.areaHectares} ha)
+            {selectedParcel.parcelName || selectedParcel.producerName} —{' '}
+            {selectedParcel.municipality} ({selectedParcel.areaHectares} ha)
           </strong>
           <span style={{ fontSize: '0.86rem', color: T.colors.textSecondary }}>
             Salud del cacaotal: <strong>{selectedFriendly.canopyHealthLabel}</strong> ·{' '}
@@ -250,11 +246,7 @@ export default function DashboardHomeModule({
           </span>
         </div>
 
-        <button
-          type="button"
-          className="btn-control"
-          onClick={() => onNavigate('bitacora')}
-        >
+        <button type="button" className="btn-control" onClick={() => onNavigate('bitacora')}>
           Anotar actividad de hoy en esta parcela
         </button>
       </section>
@@ -288,16 +280,19 @@ export default function DashboardHomeModule({
                 <h2 style={{ margin: 0, fontSize: '1.08rem', color: T.colors.primaryGreen }}>
                   {mod.title}
                 </h2>
-                <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: 1.5, color: T.colors.textSecondary }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.88rem',
+                    lineHeight: 1.5,
+                    color: T.colors.textSecondary,
+                  }}
+                >
                   {mod.summary}
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => onNavigate(mod.section)}
-              >
+              <button type="button" className="btn-primary" onClick={() => onNavigate(mod.section)}>
                 {mod.actionLabel}
               </button>
             </article>

@@ -41,9 +41,7 @@ function createRandomUuidV4(): string {
 }
 
 export default function KananCacaoPortalPage() {
-  const [operatorProfile, setOperatorProfile] = useState<AuthenticatedOperatorProfile | null>(
-    null
-  );
+  const [operatorProfile, setOperatorProfile] = useState<AuthenticatedOperatorProfile | null>(null);
   const [authChecked, setAuthChecked] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState<ProducerNavSection>('inicio');
 
@@ -166,8 +164,8 @@ export default function KananCacaoPortalPage() {
   const handleToggleCustf = async (parcelId: string) => {
     setParcels((prev) =>
       prev.map((p) =>
-        p.parcelId === parcelId ? { ...p, hasVerifiedCustfPermit: !p.hasVerifiedCustfPermit } : p
-      )
+        p.parcelId === parcelId ? { ...p, hasVerifiedCustfPermit: !p.hasVerifiedCustfPermit } : p,
+      ),
     );
     try {
       const updated = await toggleParcelCustfLive(parcelId);
@@ -216,13 +214,13 @@ export default function KananCacaoPortalPage() {
       setParcels(mergedList);
       setSelectedParcelId(newParcelId);
       setGeorefStatusMsg(
-        `Nueva georreferencia guardada: ${payload.parcelName} (${payload.areaHectares} ha en ${payload.municipality}). Ya puedes verla en el mapa satelital.`
+        `Nueva georreferencia guardada: ${payload.parcelName} (${payload.areaHectares} ha en ${payload.municipality}). Ya puedes verla en el mapa satelital.`,
       );
     } catch (err) {
       setGeorefErrorMsg(
         err instanceof Error
           ? `No se pudo sincronizar con el servidor en este momento (${err.message}). Se guardó temporalmente en tu vista local.`
-          : 'No se pudo guardar en línea; se mantuvo en tu pantalla.'
+          : 'No se pudo guardar en línea; se mantuvo en tu pantalla.',
       );
       setParcels((prev) => [localNewParcel, ...prev]);
       setSelectedParcelId(newParcelId);
@@ -272,8 +270,25 @@ export default function KananCacaoPortalPage() {
             onUpdateParcelSnapshots={(parcelId, snaps) =>
               setParcels((prev) =>
                 prev.map((item) =>
-                  item.parcelId === parcelId ? { ...item, historicalSnapshots: snaps } : item
-                )
+                  item.parcelId === parcelId ? { ...item, historicalSnapshots: snaps } : item,
+                ),
+              )
+            }
+            onUpdateParcelDocuments={(parcelId, docs) =>
+              setParcels((prev) =>
+                prev.map((item) =>
+                  item.parcelId === parcelId
+                    ? {
+                        ...item,
+                        documents: docs,
+                        hasVerifiedCustfPermit:
+                          item.hasVerifiedCustfPermit ||
+                          docs.some(
+                            (d) => d.document_type === 'CUSTF_SEMARNAT' && d.verified_by_admin,
+                          ),
+                      }
+                    : item,
+                ),
               )
             }
             onToggleCustf={handleToggleCustf}

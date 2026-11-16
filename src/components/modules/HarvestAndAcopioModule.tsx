@@ -32,7 +32,7 @@ export default function HarvestAndAcopioModule({
   const [podCount, setPodCount] = useState('1400');
   const [wetWeightKg, setWetWeightKg] = useState('520');
   const [fermentationMethod, setFermentationMethod] = useState<'CAJONES_MADERA' | 'COSTALES'>(
-    'CAJONES_MADERA'
+    'CAJONES_MADERA',
   );
   const [fermentationDays, setFermentationDays] = useState('6');
   const [dryingDays, setDryingDays] = useState('5');
@@ -73,7 +73,7 @@ export default function HarvestAndAcopioModule({
       dryingDays: dryDays,
     });
     setHarvestSavedMsg(
-      `Corte de ${pods} mazorcas (${wetKg} kg en baba) registrado para ${selectedParcel.parcelName || selectedParcel.producerName}.`
+      `Corte de ${pods} mazorcas (${wetKg} kg en baba) registrado para ${selectedParcel.parcelName || selectedParcel.producerName}.`,
     );
   };
 
@@ -82,7 +82,7 @@ export default function HarvestAndAcopioModule({
     setScaleResult(null);
     if (!friendlyStatus.papersAreClear) {
       setScaleError(
-        'Entrega detenida por revisión: falta confirmar la constancia ambiental del terreno en la pestaña Parcelas y Georreferencia antes de registrar en báscula.'
+        'Entrega detenida por revisión: falta confirmar la constancia ambiental del terreno en la pestaña Parcelas y Georreferencia antes de registrar en báscula.',
       );
       return;
     }
@@ -97,7 +97,7 @@ export default function HarvestAndAcopioModule({
           readPointId: 'centro-acopio-chontalpa-01',
           isBlockedByCustf: false,
         },
-        activeRole
+        activeRole,
       );
       setScaleResult({
         ...receipt,
@@ -123,7 +123,7 @@ export default function HarvestAndAcopioModule({
       setScaleError(
         err instanceof Error
           ? err.message
-          : 'No se pudo completar el registro en la mesa de acopio.'
+          : 'No se pudo completar el registro en la mesa de acopio.',
       );
     }
   };
@@ -397,8 +397,8 @@ export default function HarvestAndAcopioModule({
               Parcela que entrega hoy en mesa de acopio:
             </div>
             <strong style={{ fontSize: '1.02rem' }}>
-              {selectedParcel.parcelName || selectedParcel.producerName} ({selectedParcel.municipality}
-              )
+              {selectedParcel.parcelName || selectedParcel.producerName} (
+              {selectedParcel.municipality})
             </strong>
           </div>
           <span
@@ -607,7 +607,9 @@ export default function HarvestAndAcopioModule({
               </div>
               <div>
                 <div style={{ color: T.colors.textSecondary }}>Peso recibido hoy</div>
-                <strong>{String(scaleResult.deliveredDryEquivalentKg ?? deliveryKg)} kg secos</strong>
+                <strong>
+                  {String(scaleResult.deliveredDryEquivalentKg ?? deliveryKg)} kg secos
+                </strong>
               </div>
               <div>
                 <div style={{ color: T.colors.textSecondary }}>Calidad y humedad</div>
@@ -619,8 +621,8 @@ export default function HarvestAndAcopioModule({
                 <div style={{ color: T.colors.textSecondary }}>Folio de seguridad</div>
                 <code style={{ fontWeight: 700 }}>
                   {String(
-                    (scaleResult.epcisEvent as Record<string, unknown> | undefined)?.payloadSha256 ??
-                      ''
+                    (scaleResult.epcisEvent as Record<string, unknown> | undefined)
+                      ?.payloadSha256 ?? '',
                   )
                     .slice(0, 14)
                     .toUpperCase()}

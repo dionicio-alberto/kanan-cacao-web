@@ -33,11 +33,11 @@ const DEFAULT_TABASCO_RING: number[][] = [
 const DEFAULT_WAYBACK_BY_PERIOD: Record<string, string> = {
   registro_actual: '43291',
   hace_6_meses: '36557',
-  hace_1_anio: '17825',
+  hace_1_anio: '4905',
   hace_2_anios: '48376',
   hace_3_anios: '239',
-  hace_4_anios: '1052',
-  hace_5_anios: '388',
+  hace_4_anios: '26751',
+  hace_5_anios: '1052',
 };
 
 function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boolean {
@@ -60,20 +60,23 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
       : DEFAULT_TABASCO_RING;
 
   const coordKey = JSON.stringify(activeCoordinates);
+  const defaultRegDate =
+    parcel.registeredAtIso?.slice(0, 10) || new Date().toISOString().slice(0, 10);
 
-  const [referenceDate, setReferenceDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [referenceDate, setReferenceDate] = useState<string>(defaultRegDate);
   const [snapshots, setSnapshots] = useState<HistoricalParcelSnapshot[]>(() =>
     hasDistinctRealCaptures(parcel.historicalSnapshots)
       ? parcel.historicalSnapshots!
-      : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates)
+      : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates),
   );
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('registro_actual');
   const [persistedOnServer, setPersistedOnServer] = useState<boolean>(
-    hasDistinctRealCaptures(parcel.historicalSnapshots)
+    hasDistinctRealCaptures(parcel.historicalSnapshots),
   );
   const [updatingDate, setUpdatingDate] = useState<boolean>(false);
+  const [overlayOpacityPct, setOverlayOpacityPct] = useState<number>(75);
+  const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
+  const [autoPlaySeconds, setAutoPlaySeconds] = useState<number>(2);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +84,8 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     setExportMsg(null);
     setError(null);
     setSelectedPeriodKey('registro_actual');
+    setIsAutoPlaying(false);
+    setReferenceDate(defaultRegDate);
 
     if (hasDistinctRealCaptures(parcel.historicalSnapshots) && parcel.historicalSnapshots) {
       setSnapshots(parcel.historicalSnapshots);
@@ -109,10 +114,30 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     return () => {
       active = false;
     };
-  }, [parcel.parcelId, parcel.historicalSnapshots, coordKey]);
+  }, [parcel.parcelId, parcel.historicalSnapshots, coordKey, defaultRegDate]);
+
+  // Orden cronológico (del pasado más lejano de 5 años hasta la fecha de registro) para Timelapse.
+  const chronologicalPeriods = useMemo(() => {
+    return [...snapshots].reverse().map((s) => s.period_key);
+  }, [snapshots]);
+
+  useEffect(() => {
+    if (!isAutoPlaying || chronologicalPeriods.length === 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setSelectedPeriodKey((currentKey) => {
+        const idx = chronologicalPeriods.indexOf(currentKey);
+        const nextIdx = idx === -1 ? 0 : (idx + 1) % chronologicalPeriods.length;
+        return chronologicalPeriods[nextIdx];
+      });
+    }, autoPlaySeconds * 1000);
+    return () => window.clearInterval(timer);
+  }, [isAutoPlaying, autoPlaySeconds, chronologicalPeriods]);
 
   const handleChangeReferenceDate = async (nextDate: string) => {
     setReferenceDate(nextDate);
+    setIsAutoPlaying(false);
     if (!nextDate) {
       return;
     }
@@ -140,22 +165,24 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
   const { centerLat, centerLng, zoom } = useMemo(
     () => computeCenteredWaybackViewport(JSON.parse(coordKey) as number[][], VIEW_W, VIEW_H),
-    [coordKey]
+    [coordKey],
   );
 
   const waybackTiles = useMemo(
     () =>
-      computeWaybackTileLayout(
-        JSON.parse(coordKey) as number[][],
-        activeRelease,
-        VIEW_W,
-        VIEW_H
-      ),
-    [coordKey, activeRelease]
+      activeSnapshot?.cached_image_url
+        ? []
+        : computeWaybackTileLayout(
+            JSON.parse(coordKey) as number[][],
+            activeRelease,
+            VIEW_W,
+            VIEW_H,
+          ),
+    [coordKey, activeRelease, activeSnapshot?.cached_image_url],
   );
 
   const polygonPoints = activeCoordinates.map(([lng, lat]) =>
-    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom)
+    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom),
   );
   const polygonSvgStr = polygonPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');
 
@@ -186,8 +213,8 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
       URL.revokeObjectURL(url);
       setExportMsg(
         `Expediente de origen descargado para ${parcel.parcelName || parcel.parcelId}. Folio: ${String(
-          pkg.package_integrity_sha256
-        ).slice(0, 14)}...`
+          pkg.package_integrity_sha256,
+        ).slice(0, 14)}...`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -202,9 +229,9 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         backgroundColor: T.colors.surfaceCard,
         border: `1.5px solid ${T.colors.borderSubtle}`,
         borderRadius: 14,
-        padding: '22px 22px',
+        padding: '20px 22px',
         display: 'grid',
-        gap: 16,
+        gap: 14,
       }}
     >
       <div
@@ -213,7 +240,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 12,
+          gap: 10,
         }}
       >
         <div>
@@ -223,24 +250,24 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               margin: 0,
               color: T.colors.primaryGreen,
               fontFamily: 'var(--font-serif)',
-              fontSize: '1.38rem',
+              fontSize: '1.35rem',
             }}
           >
-            Fotografías Satelitales de tu Parcela (Capturas Reales sin Nubes)
+            Fotografías Satelitales de tu Parcela (Sin Nubes)
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: T.colors.textSecondary }}>
-            El sistema elige automáticamente la fotografía satelital despejada más cercana hacia atrás
-            a partir de la fecha seleccionada, garantizando capturas reales distintas en cada paso.
+          <p style={{ margin: '4px 0 0', fontSize: '0.86rem', color: T.colors.textSecondary }}>
+            Calculadas respecto a la fecha de registro (6 meses, 1, 2, 3, 4 y 5 años atrás) y
+            guardadas en servidor para no descargar cada vez que entras.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <label
               htmlFor="history-reference-date"
               style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
             >
-              Fecha base:
+              Fecha de registro:
             </label>
             <input
               id="history-reference-date"
@@ -255,9 +282,9 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
           <span
             style={{
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
               fontWeight: 700,
-              padding: '5px 10px',
+              padding: '4px 9px',
               borderRadius: 6,
               backgroundColor: persistedOnServer ? T.colors.statusGreenBg : T.colors.softCacaoBg,
               color: persistedOnServer ? T.colors.statusGreen : T.colors.earthCacao,
@@ -273,11 +300,11 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         </div>
       </div>
 
-      {/* Única lista de selección de capturas históricas reales */}
+      {/* Única barra de selección de fechas + controles de Timelapse automático y opacidad */}
       <div
         role="group"
         aria-label="Seleccionar época de fotografía satelital"
-        style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
+        style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
       >
         {snapshots.map((snap) => {
           const isSelected = snap.period_key === activeSnapshot?.period_key;
@@ -286,11 +313,14 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               key={snap.period_key}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => setSelectedPeriodKey(snap.period_key)}
+              onClick={() => {
+                setIsAutoPlaying(false);
+                setSelectedPeriodKey(snap.period_key);
+              }}
               className="btn-control"
               style={{
-                padding: '7px 12px',
-                fontSize: '0.82rem',
+                padding: '6px 11px',
+                fontSize: '0.8rem',
                 backgroundColor: isSelected ? T.colors.primaryGreen : T.colors.surfaceElevated,
                 color: isSelected ? '#FFFFFF' : T.colors.textPrimary,
                 borderColor: isSelected ? T.colors.primaryGreen : T.colors.borderControl,
@@ -302,13 +332,82 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         })}
       </div>
 
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          backgroundColor: T.colors.surfaceElevated,
+          border: `1px solid ${T.colors.borderSubtle}`,
+          borderRadius: 10,
+          padding: '8px 12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-control"
+            onClick={() => setIsAutoPlaying((prev) => !prev)}
+            style={{
+              padding: '5px 12px',
+              fontSize: '0.8rem',
+              backgroundColor: isAutoPlaying ? T.colors.earthCacao : T.colors.primaryGreen,
+              color: '#FFFFFF',
+              borderColor: isAutoPlaying ? T.colors.earthCacao : T.colors.primaryGreen,
+            }}
+          >
+            {isAutoPlaying ? '⏸ Pausar secuencia' : '▶ Reproducir evolución automática'}
+          </button>
+
+          <label
+            htmlFor="timelapse-interval-select"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+          >
+            Cambiar cada:
+          </label>
+          <select
+            id="timelapse-interval-select"
+            value={autoPlaySeconds}
+            onChange={(e) => setAutoPlaySeconds(Number(e.target.value))}
+            className="field-input"
+            style={{ width: 'auto', marginTop: 0, padding: '4px 8px', fontSize: '0.8rem' }}
+          >
+            <option value={1}>1 segundo</option>
+            <option value={2}>2 segundos</option>
+            <option value={3}>3 segundos</option>
+            <option value={5}>5 segundos</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label
+            htmlFor="parcel-overlay-opacity"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+          >
+            Opacidad de la parcela ({overlayOpacityPct}%):
+          </label>
+          <input
+            id="parcel-overlay-opacity"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={overlayOpacityPct}
+            onChange={(e) => setOverlayOpacityPct(Number(e.target.value))}
+            style={{ accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+          />
+        </div>
+      </div>
+
       {activeSnapshot ? (
         <div
           style={{
             backgroundColor: T.colors.backgroundPrimary,
             border: `1.5px solid ${T.colors.borderSubtle}`,
             borderRadius: 12,
-            padding: 16,
+            padding: 14,
             display: 'grid',
             gap: 10,
           }}
@@ -323,12 +422,13 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div>
-              <strong style={{ fontSize: '1.05rem', color: T.colors.primaryGreen }}>
+              <strong style={{ fontSize: '1.02rem', color: T.colors.primaryGreen }}>
                 {activeSnapshot.label}
               </strong>
-              <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
+              <div style={{ fontSize: '0.8rem', color: T.colors.textSecondary }}>
                 Fecha exacta en que el satélite tomó esta fotografía:{' '}
                 <strong>{activeSnapshot.captured_date_iso}</strong> · Cielo despejado verificado
+                {activeSnapshot.cached_image_url ? ' · Almacenada en servidor CDN' : ''}
               </div>
             </div>
             <span
@@ -360,22 +460,38 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               border: `2px solid ${T.colors.primaryGreen}`,
             }}
           >
-            {waybackTiles.map((tile) => (
+            {activeSnapshot.cached_image_url ? (
               <img
-                key={tile.key}
-                src={tile.url}
-                alt=""
+                src={activeSnapshot.cached_image_url}
+                alt={`Fotografía satelital ${activeSnapshot.label}`}
                 draggable={false}
                 style={{
                   position: 'absolute',
-                  left: `${tile.leftPct}%`,
-                  top: `${tile.topPct}%`,
-                  width: `${tile.widthPct}%`,
-                  height: `${tile.heightPct}%`,
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
                   pointerEvents: 'none',
                 }}
               />
-            ))}
+            ) : (
+              waybackTiles.map((tile) => (
+                <img
+                  key={tile.key}
+                  src={tile.url}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    left: `${tile.leftPct}%`,
+                    top: `${tile.topPct}%`,
+                    width: `${tile.widthPct}%`,
+                    height: `${tile.heightPct}%`,
+                    pointerEvents: 'none',
+                  }}
+                />
+              ))
+            )}
 
             <svg
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -385,12 +501,13 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
+                opacity: overlayOpacityPct / 100,
               }}
             >
               {polygonPoints.length >= 3 ? (
                 <polygon
                   points={polygonSvgStr}
-                  fill="rgba(74, 222, 128, 0.24)"
+                  fill="rgba(74, 222, 128, 0.36)"
                   stroke="#4ADE80"
                   strokeWidth={3.5}
                 />

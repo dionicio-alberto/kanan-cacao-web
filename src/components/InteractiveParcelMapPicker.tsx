@@ -11,7 +11,7 @@ import {
 } from '@/services/producerLogbookService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
-export type InteractiveMapLayer = 'satellite' | 'traffic';
+export type InteractiveMapLayer = 'satellite' | 'traffic' | 'copernicus';
 
 interface InteractiveParcelMapPickerProps {
   initialCenterLat?: number;
@@ -87,10 +87,12 @@ export default function InteractiveParcelMapPicker({
         const baseUrl =
           mapLayer === 'satellite'
             ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
-            : `https://basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}@2x.png`;
+            : mapLayer === 'copernicus'
+              ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/${zoom}/${ty}/${tx}.jpg`
+              : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
 
         const overlayUrl =
-          mapLayer === 'satellite'
+          mapLayer === 'satellite' || mapLayer === 'copernicus'
             ? `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/${zoom}/${ty}/${tx}`
             : undefined;
 
@@ -137,9 +139,9 @@ export default function InteractiveParcelMapPicker({
       },
       () => {
         setGpsMessage(
-          'No se autorizó la ubicación GPS en el navegador; desplaza el mapa y marca tus esquinas con clic.'
+          'No se autorizó la ubicación GPS en el navegador; desplaza el mapa y marca tus esquinas con clic.',
         );
-      }
+      },
     );
   };
 
@@ -176,7 +178,7 @@ export default function InteractiveParcelMapPicker({
       const next = worldPixelToLatLng(
         dragStateRef.current.origCenterWorldX - rawDx * scaleX,
         dragStateRef.current.origCenterWorldY - rawDy * scaleY,
-        zoom
+        zoom,
       );
       setCenterLat(next.lat);
       setCenterLng(next.lng);
@@ -195,22 +197,16 @@ export default function InteractiveParcelMapPicker({
     const rect = mapBoxRef.current.getBoundingClientRect();
     const clickX = ((e.clientX - rect.left) / Math.max(rect.width, 1)) * VIEW_W;
     const clickY = ((e.clientY - rect.top) / Math.max(rect.height, 1)) * VIEW_H;
-    const picked = screenClickToLatLng(
-      clickX,
-      clickY,
-      VIEW_W,
-      VIEW_H,
-      centerLat,
-      centerLng,
-      zoom
-    );
+    const picked = screenClickToLatLng(clickX, clickY, VIEW_W, VIEW_H, centerLat, centerLng, zoom);
     setLintNotice(null);
     emitUpdatedVertices([...vertices, [picked.lng, picked.lat]]);
   };
 
   const handleValidateAndFixRing = async () => {
     if (vertices.length < 3) {
-      setLintNotice('Marca al menos 3 esquinas dando clic sobre el mapa antes de cuadrar linderos.');
+      setLintNotice(
+        'Marca al menos 3 esquinas dando clic sobre el mapa antes de cuadrar linderos.',
+      );
       return;
     }
     setRepairing(true);
@@ -226,7 +222,7 @@ export default function InteractiveParcelMapPicker({
       setLintNotice(
         report.was_self_intersection_repaired
           ? `Linderos corregidos y cerrados automáticamente (${roundedHa.toFixed(2)} hectáreas medidas).`
-          : `Linderos cerrados correctamente (${roundedHa.toFixed(2)} hectáreas medidas).`
+          : `Linderos cerrados correctamente (${roundedHa.toFixed(2)} hectáreas medidas).`,
       );
     } catch {
       const closed = [...vertices, vertices[0]];
@@ -239,7 +235,7 @@ export default function InteractiveParcelMapPicker({
   };
 
   const screenPoints = vertices.map(([lng, lat]) =>
-    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom)
+    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom),
   );
   const polygonSvgStr = screenPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');
   const gpsScreenPoint = gpsMarker
@@ -276,11 +272,13 @@ export default function InteractiveParcelMapPicker({
             aria-pressed={mapLayer === 'satellite'}
             onClick={() => setMapLayer('satellite')}
             style={{
-              padding: '6px 12px',
-              fontSize: '0.82rem',
-              backgroundColor: mapLayer === 'satellite' ? T.colors.primaryGreen : T.colors.surfaceCard,
+              padding: '6px 11px',
+              fontSize: '0.8rem',
+              backgroundColor:
+                mapLayer === 'satellite' ? T.colors.primaryGreen : T.colors.surfaceCard,
               color: mapLayer === 'satellite' ? '#FFFFFF' : T.colors.textPrimary,
-              borderColor: mapLayer === 'satellite' ? T.colors.primaryGreen : T.colors.borderControl,
+              borderColor:
+                mapLayer === 'satellite' ? T.colors.primaryGreen : T.colors.borderControl,
             }}
           >
             🛰️ Mapa Satelital
@@ -292,14 +290,30 @@ export default function InteractiveParcelMapPicker({
             aria-pressed={mapLayer === 'traffic'}
             onClick={() => setMapLayer('traffic')}
             style={{
-              padding: '6px 12px',
-              fontSize: '0.82rem',
+              padding: '6px 11px',
+              fontSize: '0.8rem',
               backgroundColor: mapLayer === 'traffic' ? T.colors.earthCacao : T.colors.surfaceCard,
               color: mapLayer === 'traffic' ? '#FFFFFF' : T.colors.textPrimary,
               borderColor: mapLayer === 'traffic' ? T.colors.earthCacao : T.colors.borderControl,
             }}
           >
-            🚗 Mapa de Tráfico y Caminos
+            🛣️ Calles y Caminos (Open Source)
+          </button>
+
+          <button
+            type="button"
+            className="btn-control"
+            aria-pressed={mapLayer === 'copernicus'}
+            onClick={() => setMapLayer('copernicus')}
+            style={{
+              padding: '6px 11px',
+              fontSize: '0.8rem',
+              backgroundColor: mapLayer === 'copernicus' ? '#1D4ED8' : T.colors.surfaceCard,
+              color: mapLayer === 'copernicus' ? '#FFFFFF' : T.colors.textPrimary,
+              borderColor: mapLayer === 'copernicus' ? '#1D4ED8' : T.colors.borderControl,
+            }}
+          >
+            🇪🇺 Copernicus UE (Sin nubes)
           </button>
 
           <button
@@ -496,7 +510,14 @@ export default function InteractiveParcelMapPicker({
 
           {screenPoints.map((pt, index) => (
             <g key={`corner-${index}`}>
-              <circle cx={pt.x} cy={pt.y} r={10} fill="#144526" stroke="#FFFFFF" strokeWidth={2.5} />
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={10}
+                fill="#144526"
+                stroke="#FFFFFF"
+                strokeWidth={2.5}
+              />
               <text
                 x={pt.x}
                 y={pt.y + 3.5}
