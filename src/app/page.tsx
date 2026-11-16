@@ -1,9 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
-import OperationsDashboard from '@/components/OperationsDashboard';
-import SupabaseLoginWall from '@/components/SupabaseLoginWall';
+import CarbonBonusModule from '@/components/modules/CarbonBonusModule';
+import DashboardHomeModule from '@/components/modules/DashboardHomeModule';
+import FieldLogbookModule from '@/components/modules/FieldLogbookModule';
+import HarvestAndAcopioModule from '@/components/modules/HarvestAndAcopioModule';
+import ParcelsAndGeorefModule, {
+  CreateGeorefParcelPayload,
+} from '@/components/modules/ParcelsAndGeorefModule';
+import ProducerTopNav from '@/components/ProducerTopNav';
+import PublicLandingAndLogin from '@/components/PublicLandingAndLogin';
 import { INITIAL_PARCELS } from '@/services/demoParcels';
 import {
   fetchPersistedParcelsWithMeta,
@@ -11,156 +17,108 @@ import {
   toggleParcelCustfLive,
 } from '@/services/geoEngineLiveClient';
 import {
+  FieldLogEntry,
+  HarvestAcopioEntry,
+  INITIAL_FIELD_LOGS,
+  INITIAL_HARVEST_ENTRIES,
+  ProducerNavSection,
+} from '@/services/producerLogbookService';
+import {
   AuthenticatedOperatorProfile,
   getActiveSupabaseSession,
-  isSupabaseConfigured,
   signOutSupabaseSession,
+  subscribeToSupabaseAuthChanges,
 } from '@/services/supabaseClient';
 import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
-import { WEB_DOMAIN_CONSTANTS, WebUserRole } from '@/types/adminDomain';
+import { WebUserRole } from '@/types/adminDomain';
 
-const ROLE_META: Record<
-  WebUserRole,
-  { label: string; scopeTag: string; description: string; activeBg: string }
-> = {
-  admin_astra: {
-    label: 'Admin ASTRA',
-    scopeTag: 'Gobernanza completa',
-    description:
-      'Autorizado para auditar estatus EUDR, verificar permisos CUSTF de SEMARNAT, consultar alertas de rendimiento (450 a 650 kg/ha) y exportar paquetes TRACES NT.',
-    activeBg: T.colors.primaryGreen,
-  },
-  auditor_sustentabilidad: {
-    label: 'Auditor EUDR',
-    scopeTag: 'Fiscalización satelital',
-    description:
-      'Autorizado para inspeccionar cobertura arbórea JRC 2020, vigor NDVI Sentinel-2, excesos de rendimiento por hectárea y firmas SHA-256.',
-    activeBg: T.colors.secondaryGreen,
-  },
-  acopiador: {
-    label: 'Operador de báscula',
-    scopeTag: 'Modo ciego activo',
-    description:
-      'Registra recepciones de cacao y emite eventos GS1 EPCIS 2.0. El sistema oculta el cupo biológico restante para impedir el lavado de cacao externo.',
-    activeBg: T.colors.earthCacao,
-  },
-};
+function createRandomUuidV4(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+}
 
-export default function AdminDashboardPage() {
-  const [activeRole, setActiveRole] = useState<WebUserRole>('admin_astra');
-  const [operatorProfile, setOperatorProfile] = useState<AuthenticatedOperatorProfile | null>(null);
+export default function KananCacaoPortalPage() {
+  const [operatorProfile, setOperatorProfile] = useState<AuthenticatedOperatorProfile | null>(
+    null
+  );
   const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const [activeSection, setActiveSection] = useState<ProducerNavSection>('inicio');
+
   const [parcels, setParcels] = useState<ParcelAdminOverview[]>(INITIAL_PARCELS);
   const [selectedParcelId, setSelectedParcelId] = useState<string>(INITIAL_PARCELS[0].parcelId);
-  const [sqliteConnected, setSqliteConnected] = useState<boolean>(false);
   const [storageEngine, setStorageEngine] = useState<string>('demo');
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [syncingFieldParcel, setSyncingFieldParcel] = useState<boolean>(false);
 
-  const selectedParcel = parcels.find((p) => p.parcelId === selectedParcelId) ?? parcels[0];
-  const supabaseLive = isSupabaseConfigured();
-  const currentRoleMeta = ROLE_META[activeRole];
+  const [fieldLogs, setFieldLogs] = useState<FieldLogEntry[]>(INITIAL_FIELD_LOGS);
+  const [harvestEntries, setHarvestEntries] =
+    useState<HarvestAcopioEntry[]>(INITIAL_HARVEST_ENTRIES);
 
+  const [savingGeoref, setSavingGeoref] = useState(false);
+  const [georefStatusMsg, setGeorefStatusMsg] = useState<string | null>(null);
+  const [georefErrorMsg, setGeorefErrorMsg] = useState<string | null>(null);
+
+  // Verificación estricta de sesión antes de habilitar cualquier módulo operativo.
   useEffect(() => {
     let active = true;
 
-    if (supabaseLive) {
-      getActiveSupabaseSession()
-        .then((session) => {
-          if (active && session) {
-            setOperatorProfile(session);
-            setActiveRole(session.role);
-          }
-        })
-        .catch(() => {
-          // Keep null session when token is missing or expired.
-        })
-        .finally(() => {
-          if (active) {
-            setAuthChecked(true);
-          }
-        });
-    } else {
-      setAuthChecked(true);
+    getActiveSupabaseSession()
+      .then((session) => {
+        if (active) {
+          setOperatorProfile(session);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setOperatorProfile(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAuthChecked(true);
+        }
+      });
+
+    const unsubscribe = subscribeToSupabaseAuthChanges(() => {
+      if (active) {
+        setOperatorProfile(null);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Solo consulta datos de parcelas cuando existe una sesión autenticada válida.
+  useEffect(() => {
+    if (!operatorProfile?.accessToken) {
+      return;
     }
 
+    let active = true;
     fetchPersistedParcelsWithMeta()
       .then(({ storageEngine: engine, parcels: persisted }) => {
         if (active && persisted.length > 0) {
           setParcels(persisted);
           setSelectedParcelId(persisted[0].parcelId);
-          setSqliteConnected(true);
           setStorageEngine(engine);
         }
       })
       .catch(() => {
         if (active) {
-          setSqliteConnected(false);
+          setStorageEngine('local_fallback');
         }
       });
+
     return () => {
       active = false;
     };
-  }, [supabaseLive]);
+  }, [operatorProfile?.accessToken]);
 
-  const toggleCustf = async (parcelId: string) => {
-    setParcels((prev) =>
-      prev.map((p) =>
-        p.parcelId === parcelId ? { ...p, hasVerifiedCustfPermit: !p.hasVerifiedCustfPermit } : p,
-      ),
-    );
-    try {
-      const updated = await toggleParcelCustfLive(parcelId);
-      setParcels((prev) => prev.map((p) => (p.parcelId === parcelId ? updated : p)));
-      setSqliteConnected(true);
-    } catch {
-      // Keeps optimistic state when running without the local FastAPI backend.
-    }
-  };
-
-  const handleSimulateMobileSync = async () => {
-    setSyncingFieldParcel(true);
-    setSyncMessage(null);
-    setSyncError(null);
-    const mobileParcelId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-    try {
-      const updatedList = await syncFieldParcelToSqliteLive({
-        parcelId: mobileParcelId,
-        parcelName: 'Finca San José (Huimanguillo)',
-        producerId: '11111111-1111-4111-8111-111111111111',
-        producerName: 'Ing. Sofía Méndez (Huimanguillo)',
-        municipality: 'Huimanguillo',
-        areaHectares: 2.9,
-        shadeTreeCount: 110,
-      });
-      setParcels(updatedList);
-      setSelectedParcelId(mobileParcelId);
-      setSqliteConnected(true);
-      const engineLabel = storageEngine === 'supabase_postgis' ? 'Supabase PostGIS' : 'SQLite';
-      setSyncMessage(
-        `Sincronización diferencial completada: parcela Finca San José (Huimanguillo) (2.9 ha) validada por el linter y guardada en ${engineLabel}.`,
-      );
-    } catch (err) {
-      setSyncError(
-        err instanceof Error
-          ? `${err.message}. Verifica la conexión con el motor Geo-Engine.`
-          : String(err),
-      );
-    } finally {
-      setSyncingFieldParcel(false);
-    }
-  };
-
-  const storageBadgeText =
-    storageEngine === 'supabase_postgis' || supabaseLive
-      ? 'Origen: Supabase PostGIS en vivo'
-      : sqliteConnected
-        ? 'Origen: Base local SQLite activa (127.0.0.1:8080)'
-        : '[DATOS DE DEMOSTRACIÓN: Semilla Chontalpa]';
-
-  if (supabaseLive && !authChecked) {
+  if (!authChecked) {
     return (
       <main
         style={{
@@ -174,451 +132,184 @@ export default function AdminDashboardPage() {
           fontWeight: 700,
         }}
       >
-        Verificando sesión en Supabase Auth...
+        Verificando sesión segura en Kanan Cacao...
       </main>
     );
   }
 
-  if (supabaseLive && !operatorProfile) {
+  // Zero-Bypass Guard: sin sesión autenticada real solo se muestra la Landing Page + Login.
+  if (!operatorProfile) {
     return (
-      <SupabaseLoginWall
+      <PublicLandingAndLogin
         onAuthenticated={(profile) => {
           setOperatorProfile(profile);
-          setActiveRole(profile.role);
+          setActiveSection('inicio');
         }}
       />
     );
   }
 
+  const activeRole: WebUserRole = operatorProfile.role;
+  const selectedParcel = parcels.find((p) => p.parcelId === selectedParcelId) ?? parcels[0];
+
+  const handleSignOut = async () => {
+    await signOutSupabaseSession();
+    setOperatorProfile(null);
+    setParcels(INITIAL_PARCELS);
+    setSelectedParcelId(INITIAL_PARCELS[0].parcelId);
+    setGeorefStatusMsg(null);
+    setGeorefErrorMsg(null);
+  };
+
+  const handleToggleCustf = async (parcelId: string) => {
+    setParcels((prev) =>
+      prev.map((p) =>
+        p.parcelId === parcelId ? { ...p, hasVerifiedCustfPermit: !p.hasVerifiedCustfPermit } : p
+      )
+    );
+    try {
+      const updated = await toggleParcelCustfLive(parcelId);
+      setParcels((prev) => prev.map((p) => (p.parcelId === parcelId ? updated : p)));
+    } catch {
+      // Mantiene cambio optimista en pantalla cuando no responde el backend remoto.
+    }
+  };
+
+  const handleCreateGeorefParcel = async (payload: CreateGeorefParcelPayload) => {
+    setSavingGeoref(true);
+    setGeorefStatusMsg(null);
+    setGeorefErrorMsg(null);
+
+    const newParcelId = createRandomUuidV4();
+    const localNewParcel: ParcelAdminOverview = {
+      parcelId: newParcelId,
+      parcelName: payload.parcelName,
+      producerId: '11111111-1111-4111-8111-111111111111',
+      producerName: payload.producerName,
+      municipality: payload.municipality,
+      areaHectares: payload.areaHectares,
+      eudrStatus: 'VERDE',
+      ndviAlertLevel: 'VIGOR_AGROFORESTAL_OPTIMO',
+      meanNdvi: 0.78,
+      shadeTreeCount: payload.shadeTreeCount,
+      acahualRemovalPost2020: false,
+      hasVerifiedCustfPermit: true,
+      coordinates: payload.coordinates,
+    };
+
+    try {
+      const updatedList = await syncFieldParcelToSqliteLive({
+        parcelId: newParcelId,
+        parcelName: payload.parcelName,
+        producerId: '11111111-1111-4111-8111-111111111111',
+        producerName: payload.producerName,
+        municipality: payload.municipality,
+        areaHectares: payload.areaHectares,
+        shadeTreeCount: payload.shadeTreeCount,
+        coordinates: payload.coordinates,
+      });
+
+      const foundInRemote = updatedList.some((p) => p.parcelId === newParcelId);
+      const mergedList = foundInRemote ? updatedList : [localNewParcel, ...updatedList];
+      setParcels(mergedList);
+      setSelectedParcelId(newParcelId);
+      setGeorefStatusMsg(
+        `Nueva georreferencia guardada: ${payload.parcelName} (${payload.areaHectares} ha en ${payload.municipality}). Ya puedes verla en el mapa satelital.`
+      );
+    } catch (err) {
+      setGeorefErrorMsg(
+        err instanceof Error
+          ? `No se pudo sincronizar con el servidor en este momento (${err.message}). Se guardó temporalmente en tu vista local.`
+          : 'No se pudo guardar en línea; se mantuvo en tu pantalla.'
+      );
+      setParcels((prev) => [localNewParcel, ...prev]);
+      setSelectedParcelId(newParcelId);
+    } finally {
+      setSavingGeoref(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <a href="#main-workbench" className="skip-link">
-        Saltar al área de trabajo principal
+        Saltar al contenido principal
       </a>
 
-      <header
-        style={{
-          backgroundColor: T.colors.surfaceCard,
-          borderBottom: `2px solid ${T.colors.borderSubtle}`,
-        }}
+      <ProducerTopNav
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
+        parcels={parcels}
+        selectedParcelId={selectedParcel.parcelId}
+        onSelectParcel={setSelectedParcelId}
+        operatorProfile={operatorProfile}
+        storageEngine={storageEngine}
+        onSignOut={handleSignOut}
+      />
+
+      <main
+        id="main-workbench"
+        className="page-shell"
+        style={{ flex: 1, paddingTop: 22, paddingBottom: 32 }}
       >
-        <div
-          style={{
-            backgroundColor: T.colors.primaryGreen,
-            color: '#FFFFFF',
-            padding: '10px 20px',
-            fontSize: '0.8125rem',
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 1280,
-              margin: '0 auto',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, letterSpacing: '0.03em' }}>
-                ASTRA S.A.S. · Región Grijalva-Chontalpa, Tabasco
-              </span>
-              <span aria-hidden="true">|</span>
-              <span>
-                Corte regulatorio EUDR: <strong>{WEB_DOMAIN_CONSTANTS.EUDR_CUTOFF_DATE_ISO}</strong>
-              </span>
-              <span aria-hidden="true">|</span>
-              <span>
-                Rango biológico Tabasco:{' '}
-                <strong>
-                  {WEB_DOMAIN_CONSTANTS.TABASCO_YIELD_CAP_MIN_KG_HA} a{' '}
-                  {WEB_DOMAIN_CONSTANTS.TABASCO_YIELD_CAP_MAX_KG_HA} kg/ha
-                </strong>
-              </span>
-            </div>
+        {activeSection === 'inicio' ? (
+          <DashboardHomeModule
+            operatorName={operatorProfile.fullName}
+            parcels={parcels}
+            selectedParcel={selectedParcel}
+            fieldLogs={fieldLogs}
+            harvestEntries={harvestEntries}
+            onNavigate={setActiveSection}
+          />
+        ) : null}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  color: T.colors.primaryGreen,
-                  padding: '3px 10px',
-                  borderRadius: 4,
-                  fontWeight: 700,
-                  fontSize: '0.75rem',
-                }}
-              >
-                {storageBadgeText}
-              </span>
+        {activeSection === 'parcelas' ? (
+          <ParcelsAndGeorefModule
+            parcels={parcels}
+            selectedParcel={selectedParcel}
+            onSelectParcel={setSelectedParcelId}
+            onToggleCustf={handleToggleCustf}
+            onCreateGeorefParcel={handleCreateGeorefParcel}
+            savingGeoref={savingGeoref}
+            georefStatusMsg={georefStatusMsg}
+            georefErrorMsg={georefErrorMsg}
+          />
+        ) : null}
 
-              {operatorProfile ? (
-                <>
-                  <span
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                      color: '#FFFFFF',
-                      padding: '3px 10px',
-                      borderRadius: 4,
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                    }}
-                  >
-                    {operatorProfile.fullName} ({operatorProfile.email})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await signOutSupabaseSession();
-                      setOperatorProfile(null);
-                    }}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      color: T.colors.earthCacao,
-                      border: 'none',
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cerrar sesión
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        {activeSection === 'bitacora' ? (
+          <FieldLogbookModule
+            parcels={parcels}
+            selectedParcel={selectedParcel}
+            onSelectParcel={setSelectedParcelId}
+            fieldLogs={fieldLogs}
+            onAddFieldLog={(entry) => setFieldLogs((prev) => [entry, ...prev])}
+          />
+        ) : null}
 
-        <div className="page-shell" style={{ paddingBottom: 20 }}>
-          <div className="header-split">
-            <div>
-              <p
-                style={{
-                  margin: '0 0 6px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 700,
-                  color: T.colors.earthCacao,
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
-                SISTEMA KANAN CACAO · PASAPORTE DIGITAL GEOESPACIAL (v0.2.0)
-              </p>
-              <h1
-                style={{
-                  margin: 0,
-                  color: T.colors.primaryGreen,
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: 'clamp(1.65rem, 1.35rem + 1.2vw, 2.25rem)',
-                  fontWeight: 700,
-                  lineHeight: 1.2,
-                }}
-              >
-                Consola de Trazabilidad EUDR y Báscula Ciega
-              </h1>
-              <p
-                style={{
-                  margin: '10px 0 12px',
-                  color: T.colors.textPrimary,
-                  fontSize: '1rem',
-                  maxWidth: '64ch',
-                }}
-              >
-                Inspecciona polígonos de cultivo bajo línea base 2020, verifica permisos CUSTF de
-                SEMARNAT, simula el pesaje antifraude en centro de acopio bajo estándar GS1 EPCIS
-                2.0 y consolida minifundios menores a 5 ha para mercados de carbono.
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  padding: '8px 12px',
-                  backgroundColor: T.colors.backgroundPrimary,
-                  border: `1px solid ${T.colors.borderSubtle}`,
-                  borderRadius: 6,
-                  fontSize: '0.8125rem',
-                  color: T.colors.textSecondary,
-                  maxWidth: '68ch',
-                }}
-              >
-                <strong>Nota regulatoria:</strong> {WEB_DOMAIN_CONSTANTS.EUDR_LEGAL_DISCLAIMER}
-              </p>
-            </div>
+        {activeSection === 'cosecha' ? (
+          <HarvestAndAcopioModule
+            activeRole={activeRole}
+            parcels={parcels}
+            selectedParcel={selectedParcel}
+            onSelectParcel={setSelectedParcelId}
+            harvestEntries={harvestEntries}
+            onAddHarvestEntry={(entry) => setHarvestEntries((prev) => [entry, ...prev])}
+          />
+        ) : null}
 
-            <div
-              style={{
-                backgroundColor: T.colors.backgroundPrimary,
-                padding: 18,
-                borderRadius: 10,
-                border: `2px solid ${T.colors.borderControl}`,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 10,
-                }}
-              >
-                <span
-                  id="rbac-selector-label"
-                  style={{
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    color: T.colors.textPrimary,
-                  }}
-                >
-                  Simulador de rol activo (control RBAC):
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: 4,
-                    backgroundColor: currentRoleMeta.activeBg,
-                    color: '#FFFFFF',
-                  }}
-                >
-                  {currentRoleMeta.scopeTag}
-                </span>
-              </div>
-
-              <div
-                role="group"
-                aria-labelledby="rbac-selector-label"
-                className="role-switcher-row"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 8,
-                }}
-              >
-                {(Object.keys(ROLE_META) as WebUserRole[]).map((role) => {
-                  const isActive = activeRole === role;
-                  return (
-                    <button
-                      key={role}
-                      type="button"
-                      aria-pressed={isActive}
-                      onClick={() => setActiveRole(role)}
-                      className="btn-control"
-                      style={{
-                        justifyContent: 'center',
-                        textAlign: 'center',
-                        fontSize: '0.85rem',
-                        padding: '10px 8px',
-                        backgroundColor: isActive ? ROLE_META[role].activeBg : T.colors.surfaceCard,
-                        color: isActive ? '#FFFFFF' : T.colors.textPrimary,
-                        borderColor: isActive ? ROLE_META[role].activeBg : T.colors.borderControl,
-                      }}
-                    >
-                      {ROLE_META[role].label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p
-                style={{
-                  margin: '12px 0 0',
-                  fontSize: '0.8125rem',
-                  color: T.colors.textSecondary,
-                  backgroundColor: T.colors.surfaceCard,
-                  padding: '10px 12px',
-                  borderRadius: 6,
-                  border: `1px solid ${T.colors.borderSubtle}`,
-                }}
-              >
-                {currentRoleMeta.description}
-              </p>
-            </div>
-          </div>
-
-          <nav
-            aria-label="Secciones de la consola operativa"
-            style={{
-              marginTop: 18,
-              paddingTop: 14,
-              borderTop: `1px solid ${T.colors.borderSubtle}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 10,
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span
-                style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 700,
-                  color: T.colors.textSecondary,
-                  marginRight: 4,
-                }}
-              >
-                Ir a sección:
-              </span>
-              <a
-                href="#padron-parcelas"
-                className="btn-control"
-                style={{
-                  textDecoration: 'none',
-                  minHeight: 44,
-                  padding: '8px 14px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                1. Padrón EUDR y CUSTF
-              </a>
-              <a
-                href="#bascula-epcis"
-                className="btn-control"
-                style={{
-                  textDecoration: 'none',
-                  minHeight: 44,
-                  padding: '8px 14px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                2. Báscula ciega y EPCIS 2.0
-              </a>
-              <a
-                href="#linter-cartografico"
-                className="btn-control"
-                style={{
-                  textDecoration: 'none',
-                  minHeight: 44,
-                  padding: '8px 14px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                3. Linter topológico y TRACES NT
-              </a>
-              <a
-                href="#consolidacion-carbono"
-                className="btn-control"
-                style={{
-                  textDecoration: 'none',
-                  minHeight: 44,
-                  padding: '8px 14px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                4. Lote comunitario de carbono
-              </a>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSimulateMobileSync}
-              disabled={syncingFieldParcel}
-              className="btn-cacao"
-              style={{ fontSize: '0.85rem', padding: '8px 14px' }}
-            >
-              {syncingFieldParcel
-                ? 'Sincronizando parcela con PostGIS...'
-                : 'Sincronizar parcela capturada en app móvil (PostGIS)'}
-            </button>
-          </nav>
-
-          {syncMessage && (
-            <div
-              role="status"
-              style={{
-                marginTop: 12,
-                padding: '10px 14px',
-                borderRadius: 6,
-                backgroundColor: T.colors.statusGreenBg,
-                border: '1px solid #15803D',
-                color: T.colors.statusGreen,
-                fontWeight: 700,
-                fontSize: '0.85rem',
-              }}
-            >
-              {syncMessage}
-            </div>
-          )}
-
-          {syncError && (
-            <div
-              role="alert"
-              style={{
-                marginTop: 12,
-                padding: '10px 14px',
-                borderRadius: 6,
-                backgroundColor: T.colors.statusRedBg,
-                border: '1px solid #B91C1C',
-                color: T.colors.statusRed,
-                fontWeight: 700,
-                fontSize: '0.85rem',
-              }}
-            >
-              {syncError}
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main id="main-workbench" className="page-shell" style={{ flex: 1 }}>
-        <OperationsDashboard
-          key={activeRole}
-          activeRole={activeRole}
-          parcels={parcels}
-          selectedParcelId={selectedParcelId}
-          onSelectParcel={setSelectedParcelId}
-          onToggleCustf={toggleCustf}
-        />
-
-        <LiveGeoEnginePanel parcel={selectedParcel} />
+        {activeSection === 'carbono' ? <CarbonBonusModule parcels={parcels} /> : null}
       </main>
 
       <footer
         style={{
-          marginTop: 40,
           backgroundColor: T.colors.backgroundSecondary,
-          borderTop: `2px solid ${T.colors.borderSubtle}`,
-          padding: '24px 20px',
-          fontSize: '0.85rem',
+          borderTop: `1px solid ${T.colors.borderSubtle}`,
+          padding: '16px 20px',
+          textAlign: 'center',
+          fontSize: '0.82rem',
           color: T.colors.textSecondary,
         }}
       >
-        <div
-          style={{
-            maxWidth: 1280,
-            margin: '0 auto',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 16,
-          }}
-        >
-          <div>
-            <strong style={{ color: T.colors.textPrimary }}>Kanan Cacao (ASTRA S.A.S.)</strong> ·
-            Arquitectura Offline-First con WatermelonDB, SQLite/PostGIS y FastAPI.
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span>Estándares activos: GeoJSON RFC 7946 · GS1 EPCIS 2.0 JSON-LD · UE 2023/1115</span>
-            <a
-              href="#main-workbench"
-              style={{
-                color: T.colors.primaryGreen,
-                fontWeight: 700,
-                textDecoration: 'underline',
-                minHeight: 44,
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              Volver arriba
-            </a>
-          </div>
-        </div>
+        Kanan Cacao · Portal de Productores y Acopio en Tabasco · ASTRA S.A.S.
       </footer>
     </div>
   );
