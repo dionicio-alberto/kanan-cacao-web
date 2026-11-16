@@ -1,7 +1,7 @@
 # AI-DLC Framework · Estado Actual Consolidado (`kanan-cacao-web`)
 
 **Repositorio:** `kanan-cacao-web` (Next.js App Router + Vercel + Cliente Geoespacial + Supabase Auth)  
-**Última actualización:** `15/11/2026` · **Versión activa:** `v0.13.0`
+**Última actualización:** `16/11/2026` · **Versión activa:** `v0.13.2`
 
 ---
 
@@ -19,4 +19,5 @@
 | Encuadre & 20 Intentos    | `v0.11.0`     | [`08-centered-parcel-viewer-spec.md`](./08-centered-parcel-viewer-spec.md)                                         | Completado     | Etiquetas actualizadas para búsqueda anti-nubes/sombras de **20 intentos** y centrado sincronizado.                                                                                                                            |
 | Zoom Dinámico             | `v0.12.0`     | [`09-dynamic-parcel-zoom-spec.md`](./09-dynamic-parcel-zoom-spec.md)                                               | Completado     | Sincronización de `computeOptimalParcelZoom` y teselas fraccionales en cliente para cualquier extensión en hectáreas.                                                                                                          |
 | **Alta Definición 2x**    | `v0.13.0`     | [`10-hd-1520-pansharpened-and-status-spec.md`](./10-hd-1520-pansharpened-and-status-spec.md)                       | Completado     | Soporte de contrato HD **`1520×840`** (`v9_cacaotrack_hd`) con orígenes/realce HD de `cacao-track` y validación visual con capturas de pantalla locales.                                                                       |
-| **Carga & Multitemporal** | **`v0.13.1`** | [`11-georef-loading-and-satellite-multitemporal-spec.md`](./11-georef-loading-and-satellite-multitemporal-spec.md) | **Completado** | Indicador de carga visual y accesible (spinner + tarjeta informativa) al guardar parcelas y auditoría de resolución multitemporal en satélites.                                                                                |
+| **Carga & Multitemporal** | `v0.13.1`     | [`11-georef-loading-and-satellite-multitemporal-spec.md`](./11-georef-loading-and-satellite-multitemporal-spec.md) | Completado     | Indicador de carga visual y accesible (spinner + tarjeta informativa) al guardar parcelas y auditoría de resolución multitemporal en satélites.                                                                                |
+| **Estándar Sentinel-2**   | **`v0.13.2`** | [`12-sentinel2-standardization-spec.md`](./12-sentinel2-standardization-spec.md)                                   | **Completado** | Estandarización soberana y exclusiva en la constelación Copernicus Sentinel-2 (ESA) para todas las tomas multitemporales y mapas interactivos (gratis y revisita cada 5 días).                                                 |
