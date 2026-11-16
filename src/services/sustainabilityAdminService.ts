@@ -9,6 +9,7 @@ export interface HistoricalParcelSnapshot {
   label: string;
   months_ago: number;
   wayback_release?: string;
+  sensor?: string;
   render_zoom?: number;
   image_width?: number;
   image_height?: number;
