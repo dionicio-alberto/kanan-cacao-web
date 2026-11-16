@@ -361,3 +361,25 @@ export function estimatePolygonHectares(coordinates: number[][]): number {
   const hectares = Math.abs(twiceAreaSqMeters) / 2 / 10000;
   return Number(hectares.toFixed(2));
 }
+
+export type TimelapseDirection = 'forward' | 'backward';
+
+export function getOrderedTimelapsePeriodKeys(
+  snapshots: Array<{ period_key: string }>,
+  direction: TimelapseDirection,
+): string[] {
+  const keys = snapshots.map((item) => item.period_key);
+  return direction === 'forward' ? [...keys].reverse() : keys;
+}
+
+export function getNextTimelapsePeriodKey(
+  orderedPeriodKeys: string[],
+  currentPeriodKey: string,
+): string {
+  if (orderedPeriodKeys.length === 0) {
+    return currentPeriodKey;
+  }
+  const idx = orderedPeriodKeys.indexOf(currentPeriodKey);
+  const nextIdx = idx === -1 ? 0 : (idx + 1) % orderedPeriodKeys.length;
+  return orderedPeriodKeys[nextIdx];
+}
