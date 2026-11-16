@@ -86,7 +86,9 @@ export default function InteractiveParcelMapPicker({
 
         const baseUrl =
           mapLayer === 'satellite'
-            ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
+            ? zoom <= 18
+              ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/${zoom}/${ty}/${tx}.jpg`
+              : `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
             : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
 
         const overlayUrl =
@@ -279,7 +281,7 @@ export default function InteractiveParcelMapPicker({
                 mapLayer === 'satellite' ? T.colors.primaryGreen : T.colors.borderControl,
             }}
           >
-            🛰️ Mapa Satelital
+            🛰️ Satélite Sentinel-2
           </button>
 
           <button
