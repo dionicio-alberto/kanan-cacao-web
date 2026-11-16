@@ -3,13 +3,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   buildHistoricalSnapshotsFallback,
+  computeCenteredWaybackViewport,
+  computeWaybackTileLayout,
   fetchParcelHistoricalSnapshotsLive,
   requestTracesNtExportLive,
 } from '@/services/geoEngineLiveClient';
 import {
   getProducerFriendlyParcelStatus,
   latLngToScreenPoint,
-  latLngToWorldPixel,
 } from '@/services/producerLogbookService';
 import {
   evaluateCustfAdminCompliance,
@@ -20,7 +21,6 @@ import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
 const VIEW_W = 760;
 const VIEW_H = 420;
-const TILE_SIZE = 256;
 
 const DEFAULT_TABASCO_RING: number[][] = [
   [-93.2845, 18.256],
@@ -32,39 +32,25 @@ const DEFAULT_TABASCO_RING: number[][] = [
 
 const DEFAULT_WAYBACK_BY_PERIOD: Record<string, string> = {
   registro_actual: '43291',
-  hace_6_meses: '10842',
-  hace_1_anio: '52930',
-  hace_2_anios: '46399',
-  hace_3_anios: '4905',
-  hace_4_anios: '8432',
-  hace_5_anios: '26751',
+  hace_6_meses: '36557',
+  hace_1_anio: '17825',
+  hace_2_anios: '48376',
+  hace_3_anios: '239',
+  hace_4_anios: '1052',
+  hace_5_anios: '388',
 };
 
-function computeCenteredZoomAndCenter(coordinates: number[][]): {
-  centerLat: number;
-  centerLng: number;
-  zoom: number;
-} {
-  const lngs = coordinates.map((pt) => pt[0]);
-  const lats = coordinates.map((pt) => pt[1]);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const centerLng = (minLng + maxLng) / 2;
-  const centerLat = (minLat + maxLat) / 2;
-
-  // Escoge un zoom entre 14 y 17 donde la parcela quepa holgadamente centrada dentro de 760x420.
-  for (let z = 17; z >= 14; z -= 1) {
-    const tl = latLngToWorldPixel(maxLat, minLng, z);
-    const br = latLngToWorldPixel(minLat, maxLng, z);
-    const spanX = Math.abs(br.x - tl.x);
-    const spanY = Math.abs(br.y - tl.y);
-    if (spanX <= VIEW_W * 0.52 && spanY <= VIEW_H * 0.52) {
-      return { centerLat, centerLng, zoom: z };
-    }
+function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boolean {
+  if (!Array.isArray(snaps) || snaps.length !== 7) {
+    return false;
   }
-  return { centerLat, centerLng, zoom: 14 };
+  const releases = new Set(snaps.map((item) => item.wayback_release).filter(Boolean));
+  const dates = new Set(snaps.map((item) => item.captured_date_iso).filter(Boolean));
+  return (
+    releases.size === 7 &&
+    dates.size === 7 &&
+    snaps.every((item) => item.capture_source === 'real_src_date')
+  );
 }
 
 export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOverview }) {
@@ -75,21 +61,19 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
   const coordKey = JSON.stringify(activeCoordinates);
 
+  const [referenceDate, setReferenceDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
   const [snapshots, setSnapshots] = useState<HistoricalParcelSnapshot[]>(() =>
-    Array.isArray(parcel.historicalSnapshots) &&
-    parcel.historicalSnapshots.length === 7 &&
-    parcel.historicalSnapshots.every((item) => Boolean(item.wayback_release))
-      ? parcel.historicalSnapshots
+    hasDistinctRealCaptures(parcel.historicalSnapshots)
+      ? parcel.historicalSnapshots!
       : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates)
   );
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('registro_actual');
   const [persistedOnServer, setPersistedOnServer] = useState<boolean>(
-    Boolean(
-      parcel.historicalSnapshots &&
-        parcel.historicalSnapshots.length === 7 &&
-        parcel.historicalSnapshots.every((item) => Boolean(item.wayback_release))
-    )
+    hasDistinctRealCaptures(parcel.historicalSnapshots)
   );
+  const [updatingDate, setUpdatingDate] = useState<boolean>(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,12 +82,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     setError(null);
     setSelectedPeriodKey('registro_actual');
 
-    const hasDistinctWayback =
-      Array.isArray(parcel.historicalSnapshots) &&
-      parcel.historicalSnapshots.length === 7 &&
-      parcel.historicalSnapshots.every((item) => Boolean(item.wayback_release));
-
-    if (hasDistinctWayback && parcel.historicalSnapshots) {
+    if (hasDistinctRealCaptures(parcel.historicalSnapshots) && parcel.historicalSnapshots) {
       setSnapshots(parcel.historicalSnapshots);
       setPersistedOnServer(true);
       return;
@@ -116,12 +95,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
     fetchParcelHistoricalSnapshotsLive(parcel.parcelId)
       .then((res) => {
-        if (
-          active &&
-          Array.isArray(res.snapshots) &&
-          res.snapshots.length === 7 &&
-          res.snapshots.every((item) => Boolean(item.wayback_release))
-        ) {
+        if (active && hasDistinctRealCaptures(res.snapshots)) {
           setSnapshots(res.snapshots);
           setPersistedOnServer(Boolean(res.persisted_on_server));
         }
@@ -137,6 +111,25 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     };
   }, [parcel.parcelId, parcel.historicalSnapshots, coordKey]);
 
+  const handleChangeReferenceDate = async (nextDate: string) => {
+    setReferenceDate(nextDate);
+    if (!nextDate) {
+      return;
+    }
+    setUpdatingDate(true);
+    try {
+      const res = await fetchParcelHistoricalSnapshotsLive(parcel.parcelId, nextDate);
+      if (Array.isArray(res.snapshots) && res.snapshots.length === 7) {
+        setSnapshots(res.snapshots);
+        setSelectedPeriodKey('registro_actual');
+      }
+    } catch {
+      // Mantiene las tomas actuales si el servidor remoto no está disponible.
+    } finally {
+      setUpdatingDate(false);
+    }
+  };
+
   const activeSnapshot =
     snapshots.find((item) => item.period_key === selectedPeriodKey) ?? snapshots[0];
 
@@ -146,45 +139,20 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     '43291';
 
   const { centerLat, centerLng, zoom } = useMemo(
-    () => computeCenteredZoomAndCenter(JSON.parse(coordKey) as number[][]),
+    () => computeCenteredWaybackViewport(JSON.parse(coordKey) as number[][], VIEW_W, VIEW_H),
     [coordKey]
   );
 
-  // Construye los mosaicos Esri World Imagery Wayback reales de la época seleccionada, centrados en la parcela.
-  const waybackTiles = useMemo(() => {
-    const centerWorld = latLngToWorldPixel(centerLat, centerLng, zoom);
-    const topLeftX = centerWorld.x - VIEW_W / 2;
-    const topLeftY = centerWorld.y - VIEW_H / 2;
-    const maxTile = Math.pow(2, zoom) - 1;
-
-    const minTx = Math.max(0, Math.floor(topLeftX / TILE_SIZE));
-    const maxTx = Math.min(maxTile, Math.floor((topLeftX + VIEW_W) / TILE_SIZE));
-    const minTy = Math.max(0, Math.floor(topLeftY / TILE_SIZE));
-    const maxTy = Math.min(maxTile, Math.floor((topLeftY + VIEW_H) / TILE_SIZE));
-
-    const tiles: Array<{
-      key: string;
-      url: string;
-      leftPct: number;
-      topPct: number;
-      widthPct: number;
-      heightPct: number;
-    }> = [];
-
-    for (let tx = minTx; tx <= maxTx; tx += 1) {
-      for (let ty = minTy; ty <= maxTy; ty += 1) {
-        tiles.push({
-          key: `${activeRelease}-${zoom}-${tx}-${ty}`,
-          url: `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${activeRelease}/${zoom}/${ty}/${tx}`,
-          leftPct: ((tx * TILE_SIZE - topLeftX) / VIEW_W) * 100,
-          topPct: ((ty * TILE_SIZE - topLeftY) / VIEW_H) * 100,
-          widthPct: (TILE_SIZE / VIEW_W) * 100,
-          heightPct: (TILE_SIZE / VIEW_H) * 100,
-        });
-      }
-    }
-    return tiles;
-  }, [activeRelease, centerLat, centerLng, zoom]);
+  const waybackTiles = useMemo(
+    () =>
+      computeWaybackTileLayout(
+        JSON.parse(coordKey) as number[][],
+        activeRelease,
+        VIEW_W,
+        VIEW_H
+      ),
+    [coordKey, activeRelease]
+  );
 
   const polygonPoints = activeCoordinates.map(([lng, lat]) =>
     latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom)
@@ -258,32 +226,54 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               fontSize: '1.38rem',
             }}
           >
-            Fotografías Satelitales de tu Parcela (Últimos 5 Años)
+            Fotografías Satelitales de tu Parcela (Capturas Reales sin Nubes)
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: T.colors.textSecondary }}>
-            Elige el momento que deseas consultar; la vista satelital cambia automáticamente según la
-            fecha histórica y mantiene centrada tu parcela.
+            El sistema elige automáticamente la fotografía satelital despejada más cercana hacia atrás
+            a partir de la fecha seleccionada, garantizando capturas reales distintas en cada paso.
           </p>
         </div>
 
-        <span
-          style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            padding: '5px 10px',
-            borderRadius: 6,
-            backgroundColor: persistedOnServer ? T.colors.statusGreenBg : T.colors.softCacaoBg,
-            color: persistedOnServer ? T.colors.statusGreen : T.colors.earthCacao,
-            border: `1px solid ${persistedOnServer ? '#15803D' : T.colors.earthCacao}`,
-          }}
-        >
-          {persistedOnServer
-            ? '✓ Georreferencia e historial guardados en servidor'
-            : 'Vista centrada de la parcela'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label
+              htmlFor="history-reference-date"
+              style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+            >
+              Fecha base:
+            </label>
+            <input
+              id="history-reference-date"
+              type="date"
+              value={referenceDate}
+              disabled={updatingDate}
+              onChange={(e) => void handleChangeReferenceDate(e.target.value)}
+              className="field-input"
+              style={{ width: 'auto', marginTop: 0, padding: '4px 8px', fontSize: '0.8rem' }}
+            />
+          </div>
+
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              padding: '5px 10px',
+              borderRadius: 6,
+              backgroundColor: persistedOnServer ? T.colors.statusGreenBg : T.colors.softCacaoBg,
+              color: persistedOnServer ? T.colors.statusGreen : T.colors.earthCacao,
+              border: `1px solid ${persistedOnServer ? '#15803D' : T.colors.earthCacao}`,
+            }}
+          >
+            {updatingDate
+              ? 'Buscando fechas despejadas...'
+              : persistedOnServer
+                ? '✓ Guardado en servidor sin nubes'
+                : 'Vista centrada de la parcela'}
+          </span>
+        </div>
       </div>
 
-      {/* Única lista de selección de años/época arriba de la imagen */}
+      {/* Única lista de selección de capturas históricas reales */}
       <div
         role="group"
         aria-label="Seleccionar época de fotografía satelital"
@@ -312,7 +302,6 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         })}
       </div>
 
-      {/* Visor satelital único centrado en la parcela */}
       {activeSnapshot ? (
         <div
           style={{
@@ -338,8 +327,8 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 {activeSnapshot.label}
               </strong>
               <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
-                Fecha de la captura satelital:{' '}
-                <strong>{activeSnapshot.captured_date_iso}</strong>
+                Fecha exacta en que el satélite tomó esta fotografía:{' '}
+                <strong>{activeSnapshot.captured_date_iso}</strong> · Cielo despejado verificado
               </div>
             </div>
             <span

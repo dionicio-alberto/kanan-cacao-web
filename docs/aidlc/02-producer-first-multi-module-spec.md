@@ -46,3 +46,14 @@
    - Al pulsar **`➕ Agregar nueva parcela`** se abre una **página dedicada**, sin campo de árboles de sombra, con cálculo automático de hectáreas redondeado a 2 decimales y mapa plano sin relieve (CartoDB Voyager).
 3. **Imágenes Satelitales Históricas Reales ([LiveGeoEnginePanel.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/LiveGeoEnginePanel.tsx)):**
    - Mosaicos históricos reales de **Esri World Imagery Wayback** con releases distintos para cada época (`43291`, `10842`, `52930`, `46399`, `4905`, `8432`, `26751`) y **un solo selector de años** arriba de la fotografía satelital.
+
+---
+
+## 4. Evolución AI-DLC `v0.6.0` — Ambiente Local `dev`, Fechas Reales `SRC_DATE` sin Duplicados, Descarte de Nubes y Precarga en Menú
+
+1. **Resolución Dinámica de Capturas Satelitales (`kanan-cacao-geo-engine`):**
+   - Búsqueda dinámica por fecha de registro / fecha de referencia seleccionada (`reference_date_iso`), eligiendo la toma despejada más cercana hacia atrás en el tiempo sin repetir nunca ninguna captura (`SRC_DATE` y `wayback_release` únicos) y descartando escenas cubiertas por nubes (`CLOUD_COVER > 25%` o mosaicos vacíos/nublados).
+2. **Precarga y Progreso en Menú de Parcelas ([ParcelsAndGeorefModule.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/modules/ParcelsAndGeorefModule.tsx)):**
+   - Al elegir una parcela del menú, la tarjeta muestra el progreso de descarga (`X / 7`) y precarga todos los mosaicos Wayback antes de abrir la página de la parcela.
+3. **Ciclo de Despliegue `dev` Local -> `prod`:**
+   - Validación local previa en `http://127.0.0.1:8080` y `http://localhost:3000` antes de promover `develop -> main` hacia Railway y Vercel.

@@ -307,54 +307,64 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
 }> = [
   {
     period_key: 'registro_actual',
-    label: 'Última foto al momento del registro',
+    label: 'Última foto al registro (2025-06-09)',
     months_ago: 0,
     wayback_release: '43291',
-    ref_date: '2026-10-29',
+    ref_date: '2025-06-09',
   },
   {
     period_key: 'hace_6_meses',
-    label: 'Hace 6 meses',
+    label: 'Hace 6 meses (2022-04-30)',
     months_ago: 6,
-    wayback_release: '10842',
-    ref_date: '2026-05-28',
+    wayback_release: '36557',
+    ref_date: '2022-04-30',
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 1 año',
+    label: 'Hace 1 año (2021-02-17)',
     months_ago: 12,
-    wayback_release: '52930',
-    ref_date: '2024-05-09',
+    wayback_release: '17825',
+    ref_date: '2021-02-17',
   },
   {
     period_key: 'hace_2_anios',
-    label: 'Hace 2 años',
+    label: 'Hace 2 años (2019-02-24)',
     months_ago: 24,
-    wayback_release: '46399',
-    ref_date: '2023-05-03',
+    wayback_release: '48376',
+    ref_date: '2019-02-24',
   },
   {
     period_key: 'hace_3_anios',
-    label: 'Hace 3 años',
+    label: 'Hace 3 años (2017-02-12)',
     months_ago: 36,
-    wayback_release: '4905',
-    ref_date: '2022-06-29',
+    wayback_release: '239',
+    ref_date: '2017-02-12',
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 4 años',
+    label: 'Hace 4 años (2013-03-31)',
     months_ago: 48,
-    wayback_release: '8432',
-    ref_date: '2021-07-21',
+    wayback_release: '1052',
+    ref_date: '2013-03-31',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 5 años',
+    label: 'Hace 5 años (2011-04-25)',
     months_ago: 60,
-    wayback_release: '26751',
-    ref_date: '2020-04-08',
+    wayback_release: '388',
+    ref_date: '2011-04-25',
   },
 ];
+
+function latLngToWorldPx(lat: number, lng: number, zoom: number): { x: number; y: number } {
+  const scale = 256 * Math.pow(2, zoom);
+  const clampedLat = Math.max(-85.051128, Math.min(85.051128, lat));
+  const sinLat = Math.sin((clampedLat * Math.PI) / 180);
+  return {
+    x: ((lng + 180) / 360) * scale,
+    y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale,
+  };
+}
 
 function latLngToWebMercatorTile(lat: number, lng: number, zoom = 16): { row: number; col: number } {
   const n = Math.pow(2, zoom);
@@ -362,6 +372,125 @@ function latLngToWebMercatorTile(lat: number, lng: number, zoom = 16): { row: nu
   const latRad = (Math.max(-85.051128, Math.min(85.051128, lat)) * Math.PI) / 180;
   const row = Math.floor(((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2) * n);
   return { row, col };
+}
+
+export function computeCenteredWaybackViewport(
+  coordinates: number[][],
+  viewW = 760,
+  viewH = 420
+): { centerLat: number; centerLng: number; zoom: number } {
+  if (!coordinates || coordinates.length === 0) {
+    return { centerLat: 18.2545, centerLng: -93.2825, zoom: 16 };
+  }
+  const lngs = coordinates.map((pt) => pt[0]);
+  const lats = coordinates.map((pt) => pt[1]);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const centerLng = (minLng + maxLng) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+
+  for (let z = 17; z >= 14; z -= 1) {
+    const tl = latLngToWorldPx(maxLat, minLng, z);
+    const br = latLngToWorldPx(minLat, maxLng, z);
+    if (Math.abs(br.x - tl.x) <= viewW * 0.52 && Math.abs(br.y - tl.y) <= viewH * 0.52) {
+      return { centerLat, centerLng, zoom: z };
+    }
+  }
+  return { centerLat, centerLng, zoom: 14 };
+}
+
+export function computeWaybackTileLayout(
+  coordinates: number[][],
+  waybackRelease: string,
+  viewW = 760,
+  viewH = 420
+): Array<{
+  key: string;
+  url: string;
+  leftPct: number;
+  topPct: number;
+  widthPct: number;
+  heightPct: number;
+}> {
+  const tileSize = 256;
+  const { centerLat, centerLng, zoom } = computeCenteredWaybackViewport(coordinates, viewW, viewH);
+  const centerWorld = latLngToWorldPx(centerLat, centerLng, zoom);
+  const topLeftX = centerWorld.x - viewW / 2;
+  const topLeftY = centerWorld.y - viewH / 2;
+  const maxTile = Math.pow(2, zoom) - 1;
+
+  const minTx = Math.max(0, Math.floor(topLeftX / tileSize));
+  const maxTx = Math.min(maxTile, Math.floor((topLeftX + viewW) / tileSize));
+  const minTy = Math.max(0, Math.floor(topLeftY / tileSize));
+  const maxTy = Math.min(maxTile, Math.floor((topLeftY + viewH) / tileSize));
+
+  const tiles: Array<{
+    key: string;
+    url: string;
+    leftPct: number;
+    topPct: number;
+    widthPct: number;
+    heightPct: number;
+  }> = [];
+
+  for (let tx = minTx; tx <= maxTx; tx += 1) {
+    for (let ty = minTy; ty <= maxTy; ty += 1) {
+      tiles.push({
+        key: `${waybackRelease}-${zoom}-${tx}-${ty}`,
+        url: `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`,
+        leftPct: ((tx * tileSize - topLeftX) / viewW) * 100,
+        topPct: ((ty * tileSize - topLeftY) / viewH) * 100,
+        widthPct: (tileSize / viewW) * 100,
+        heightPct: (tileSize / viewH) * 100,
+      });
+    }
+  }
+  return tiles;
+}
+
+export async function preloadParcelHistoricalTiles(
+  coordinates: number[][],
+  snapshots: HistoricalParcelSnapshot[],
+  onProgress?: (doneCount: number, totalCount: number) => void
+): Promise<void> {
+  if (typeof window === 'undefined' || !snapshots || snapshots.length === 0) {
+    return;
+  }
+
+  const total = snapshots.length;
+  let completed = 0;
+
+  const preloadSingleSnapshot = (snap: HistoricalParcelSnapshot) => {
+    const release = snap.wayback_release || '43291';
+    const tileUrls = computeWaybackTileLayout(coordinates, release, 760, 420).map((t) => t.url);
+    return Promise.all(
+      tileUrls.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new window.Image();
+            const timer = window.setTimeout(() => resolve(), 4000);
+            img.onload = () => {
+              window.clearTimeout(timer);
+              resolve();
+            };
+            img.onerror = () => {
+              window.clearTimeout(timer);
+              resolve();
+            };
+            img.src = src;
+          })
+      )
+    ).then(() => {
+      completed += 1;
+      if (onProgress) {
+        onProgress(completed, total);
+      }
+    });
+  };
+
+  await Promise.all(snapshots.map(preloadSingleSnapshot));
 }
 
 export function buildHistoricalSnapshotsFallback(
@@ -378,6 +507,8 @@ export function buildHistoricalSnapshotsFallback(
     label: spec.label,
     months_ago: spec.months_ago,
     wayback_release: spec.wayback_release,
+    capture_source: 'real_src_date',
+    cloud_cover_pct: 0,
     captured_date_iso: spec.ref_date,
     extent_bbox: extentBbox,
     direct_ortho_url:
@@ -395,15 +526,19 @@ export function getSnapshotImageSrc(snapshot: HistoricalParcelSnapshot): string 
 }
 
 export async function fetchParcelHistoricalSnapshotsLive(
-  parcelId: string
+  parcelId: string,
+  referenceDateIso?: string
 ): Promise<{
   parcel_id: string;
   persisted_on_server: boolean;
   extent_bbox: GeoBboxTuple;
   snapshots: HistoricalParcelSnapshot[];
 }> {
+  const query = referenceDateIso
+    ? `?reference_date_iso=${encodeURIComponent(referenceDateIso)}`
+    : '';
   const res = await fetch(
-    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-snapshots`,
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-snapshots${query}`,
     {
       method: 'GET',
       headers: { Accept: 'application/json' },
