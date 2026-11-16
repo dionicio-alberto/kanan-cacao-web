@@ -312,52 +312,52 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
 }> = [
   {
     period_key: 'registro_actual',
-    label: 'Última foto alta res. (09/06/2025)',
+    label: 'Última foto al registro (01/07/2025)',
     months_ago: 0,
-    wayback_release: '43291',
-    ref_date: '2025-06-09',
+    wayback_release: 's2cloudless-2025_3857',
+    ref_date: '2025-07-01',
   },
   {
     period_key: 'hace_6_meses',
-    label: 'Hace 4 años (30/04/2022)',
+    label: 'Hace 6 meses (01/07/2024)',
     months_ago: 6,
-    wayback_release: '32246',
-    ref_date: '2022-04-30',
+    wayback_release: 's2cloudless-2024_3857',
+    ref_date: '2024-07-01',
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 5 años (17/02/2021)',
+    label: 'Hace 1 año (01/07/2023)',
     months_ago: 12,
-    wayback_release: '17825',
-    ref_date: '2021-02-17',
+    wayback_release: 's2cloudless-2023_3857',
+    ref_date: '2023-07-01',
   },
   {
     period_key: 'hace_2_anios',
-    label: 'Hace 7 años (24/02/2019)',
+    label: 'Hace 2 años (01/07/2022)',
     months_ago: 24,
-    wayback_release: '19187',
-    ref_date: '2019-02-24',
+    wayback_release: 's2cloudless-2022_3857',
+    ref_date: '2022-07-01',
   },
   {
     period_key: 'hace_3_anios',
-    label: 'Hace 9 años (12/02/2017)',
+    label: 'Hace 3 años (01/07/2021)',
     months_ago: 36,
-    wayback_release: '4383',
-    ref_date: '2017-02-12',
+    wayback_release: 's2cloudless-2021_3857',
+    ref_date: '2021-07-01',
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 11 años (17/05/2015)',
+    label: 'Hace 4 años (01/07/2020)',
     months_ago: 48,
-    wayback_release: '645',
-    ref_date: '2015-05-17',
+    wayback_release: 's2cloudless-2020_3857',
+    ref_date: '2020-07-01',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 13 años (31/03/2013)',
+    label: 'Hace 5 años (01/07/2019)',
     months_ago: 60,
-    wayback_release: '27946',
-    ref_date: '2013-03-31',
+    wayback_release: 's2cloudless-2019_3857',
+    ref_date: '2019-07-01',
   },
 ];
 
@@ -496,9 +496,12 @@ export async function preloadParcelHistoricalTiles(
   const preloadSingleSnapshot = (snap: HistoricalParcelSnapshot) => {
     const urls = snap.cached_image_url
       ? [snap.cached_image_url]
-      : computeWaybackTileLayout(coordinates, snap.wayback_release || '43291', 760, 420).map(
-          (t) => t.url,
-        );
+      : computeWaybackTileLayout(
+          coordinates,
+          snap.wayback_release || 's2cloudless-2025_3857',
+          760,
+          420,
+        ).map((t) => t.url);
     return Promise.all(
       urls.map(
         (src) =>
@@ -541,13 +544,12 @@ export function buildHistoricalSnapshotsFallback(
     label: spec.label,
     months_ago: spec.months_ago,
     wayback_release: spec.wayback_release,
+    sensor: 'Copernicus Sentinel-2 EU (Cloudless)',
     capture_source: 'real_src_date',
     cloud_cover_pct: 0,
     captured_date_iso: spec.ref_date,
     extent_bbox: extentBbox,
-    direct_ortho_url:
-      `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/` +
-      `WMTS/1.0.0/default028mm/MapServer/tile/${spec.wayback_release}/16/${row}/${col}`,
+    direct_ortho_url: `https://tiles.maps.eox.at/wmts/1.0.0/${spec.wayback_release}/default/g/15/${row}/${col}.jpg`,
     server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
   }));
 }

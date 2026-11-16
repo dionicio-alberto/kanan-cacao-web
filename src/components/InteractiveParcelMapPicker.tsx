@@ -86,9 +86,7 @@ export default function InteractiveParcelMapPicker({
 
         const baseUrl =
           mapLayer === 'satellite'
-            ? zoom <= 18
-              ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/${zoom}/${ty}/${tx}.jpg`
-              : `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
+            ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/${zoom}/${ty}/${tx}.jpg`
             : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
 
         const overlayUrl =
