@@ -275,3 +275,92 @@ export const INITIAL_HARVEST_ENTRIES: HarvestAcopioEntry[] = [
     deliveryFolio: 'ACO-TAB-2026-001',
   },
 ];
+
+const TILE_SIZE = 256;
+
+export function latLngToWorldPixel(
+  lat: number,
+  lng: number,
+  zoom: number
+): { x: number; y: number } {
+  const scale = TILE_SIZE * Math.pow(2, zoom);
+  const clampedLat = Math.max(-85.051128, Math.min(85.051128, lat));
+  const sinLat = Math.sin((clampedLat * Math.PI) / 180);
+  const worldX = ((lng + 180) / 360) * scale;
+  const worldY = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+  return { x: worldX, y: worldY };
+}
+
+export function worldPixelToLatLng(
+  worldX: number,
+  worldY: number,
+  zoom: number
+): { lat: number; lng: number } {
+  const scale = TILE_SIZE * Math.pow(2, zoom);
+  const lng = (worldX / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * worldY) / scale;
+  const lat = (180 / Math.PI) * Math.atan(Math.sinh(n));
+  return {
+    lat: Number(lat.toFixed(6)),
+    lng: Number(lng.toFixed(6)),
+  };
+}
+
+export function screenClickToLatLng(
+  clickX: number,
+  clickY: number,
+  viewportW: number,
+  viewportH: number,
+  centerLat: number,
+  centerLng: number,
+  zoom: number
+): { lat: number; lng: number } {
+  const centerWorld = latLngToWorldPixel(centerLat, centerLng, zoom);
+  const worldX = centerWorld.x - viewportW / 2 + clickX;
+  const worldY = centerWorld.y - viewportH / 2 + clickY;
+  return worldPixelToLatLng(worldX, worldY, zoom);
+}
+
+export function latLngToScreenPoint(
+  lat: number,
+  lng: number,
+  viewportW: number,
+  viewportH: number,
+  centerLat: number,
+  centerLng: number,
+  zoom: number
+): { x: number; y: number } {
+  const centerWorld = latLngToWorldPixel(centerLat, centerLng, zoom);
+  const targetWorld = latLngToWorldPixel(lat, lng, zoom);
+  return {
+    x: Number((targetWorld.x - (centerWorld.x - viewportW / 2)).toFixed(2)),
+    y: Number((targetWorld.y - (centerWorld.y - viewportH / 2)).toFixed(2)),
+  };
+}
+
+export function estimatePolygonHectares(coordinates: number[][]): number {
+  if (!coordinates || coordinates.length < 3) {
+    return 0;
+  }
+  const ring =
+    coordinates[0][0] === coordinates[coordinates.length - 1][0] &&
+    coordinates[0][1] === coordinates[coordinates.length - 1][1]
+      ? coordinates
+      : [...coordinates, coordinates[0]];
+
+  const meanLatRad =
+    (ring.reduce((acc, pt) => acc + pt[1], 0) / ring.length) * (Math.PI / 180);
+  const metersPerDegLat = 111132.92;
+  const metersPerDegLng = Math.max(40000, 111412.84 * Math.cos(meanLatRad));
+
+  let twiceAreaSqMeters = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const x1 = ring[i][0] * metersPerDegLng;
+    const y1 = ring[i][1] * metersPerDegLat;
+    const x2 = ring[i + 1][0] * metersPerDegLng;
+    const y2 = ring[i + 1][1] * metersPerDegLat;
+    twiceAreaSqMeters += x1 * y2 - x2 * y1;
+  }
+  const hectares = Math.abs(twiceAreaSqMeters) / 2 / 10000;
+  return Number(hectares.toFixed(2));
+}

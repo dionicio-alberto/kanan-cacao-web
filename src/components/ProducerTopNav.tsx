@@ -35,6 +35,8 @@ export default function ProducerTopNav({
   storageEngine,
   onSignOut,
 }: ProducerTopNavProps) {
+  const activeParcel = parcels.find((item) => item.parcelId === selectedParcelId) ?? parcels[0];
+
   return (
     <header
       style={{
@@ -45,11 +47,12 @@ export default function ProducerTopNav({
         zIndex: 20,
       }}
     >
+      {/* Nivel 0: Franja superior de cuenta y salida */}
       <div
         style={{
           backgroundColor: T.colors.primaryGreen,
           color: '#FFFFFF',
-          padding: '10px 20px',
+          padding: '8px 20px',
           fontSize: '0.82rem',
         }}
       >
@@ -65,8 +68,8 @@ export default function ProducerTopNav({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 800, fontSize: '1rem' }}>🌿 Kanan Cacao</span>
-            <span style={{ opacity: 0.85 }}>·</span>
+            <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>🌿 Kanan Cacao</span>
+            <span style={{ opacity: 0.8 }}>·</span>
             <span>Tabasco, México</span>
             <span
               style={{
@@ -78,7 +81,7 @@ export default function ProducerTopNav({
               }}
             >
               {storageEngine === 'supabase_postgis'
-                ? 'Conectado en vivo'
+                ? 'Guardado en servidor en vivo'
                 : 'Conectado a respaldo local'}
             </span>
           </div>
@@ -116,72 +119,156 @@ export default function ProducerTopNav({
         </div>
       </div>
 
+      {/* Nivel 1: Navegación de Secciones del Portal */}
       <div
         style={{
-          maxWidth: 1280,
-          margin: '0 auto',
-          padding: '12px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
+          backgroundColor: '#FFFFFF',
+          borderBottom: `1px solid ${T.colors.borderSubtle}`,
         }}
       >
-        <nav aria-label="Secciones principales del portal" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={isActive ? 'page' : undefined}
-                onClick={() => onSelectSection(item.id)}
-                className="btn-control"
-                style={{
-                  backgroundColor: isActive ? T.colors.primaryGreen : T.colors.surfaceElevated,
-                  color: isActive ? '#FFFFFF' : T.colors.textPrimary,
-                  borderColor: isActive ? T.colors.primaryGreen : T.colors.borderControl,
-                  fontWeight: 700,
-                  fontSize: '0.86rem',
-                  padding: '8px 14px',
-                }}
-              >
-                <span aria-hidden="true" style={{ marginRight: 6 }}>
-                  {item.icon}
-                </span>
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label
-            htmlFor="global-parcel-select"
-            style={{ fontSize: '0.8rem', fontWeight: 700, color: T.colors.textSecondary }}
-          >
-            Parcela activa:
-          </label>
-          <select
-            id="global-parcel-select"
-            value={selectedParcelId}
-            onChange={(e) => onSelectParcel(e.target.value)}
-            className="field-input"
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: '0 auto',
+            padding: '10px 20px 0',
+            display: 'grid',
+            gap: 6,
+          }}
+        >
+          <span
             style={{
-              width: 'auto',
-              minWidth: 210,
-              marginTop: 0,
-              padding: '6px 10px',
-              fontSize: '0.84rem',
+              fontSize: '0.7rem',
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+              color: T.colors.textSecondary,
+              textTransform: 'uppercase',
             }}
           >
-            {parcels.map((p) => (
-              <option key={p.parcelId} value={p.parcelId}>
-                {p.parcelName || p.producerName} ({p.municipality})
-              </option>
-            ))}
-          </select>
+            Secciones del portal
+          </span>
+          <nav
+            aria-label="Secciones principales del portal"
+            style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
+          >
+            {NAV_ITEMS.map((item) => {
+              const isActive = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => onSelectSection(item.id)}
+                  style={{
+                    border: 'none',
+                    borderTopLeftRadius: 8,
+                    borderTopRightRadius: 8,
+                    borderBottom: isActive
+                      ? `4px solid ${T.colors.primaryGreen}`
+                      : '4px solid transparent',
+                    backgroundColor: isActive ? T.colors.softGreenBg : 'transparent',
+                    color: isActive ? T.colors.primaryGreen : T.colors.textSecondary,
+                    fontWeight: isActive ? 800 : 600,
+                    fontSize: '0.88rem',
+                    padding: '9px 14px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span aria-hidden="true">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Nivel 2: Cinta independiente para elegir la Parcela Activa */}
+      <div
+        style={{
+          backgroundColor: T.colors.softCacaoBg,
+          borderTop: `1px solid ${T.colors.earthCacao}`,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: '0 auto',
+            padding: '10px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <label
+              htmlFor="global-parcel-select"
+              style={{
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                color: T.colors.earthCacao,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span aria-hidden="true">📍</span>
+              <span>PARCELA ACTIVA EN TRABAJO:</span>
+            </label>
+            <select
+              id="global-parcel-select"
+              value={selectedParcelId}
+              onChange={(e) => onSelectParcel(e.target.value)}
+              className="field-input"
+              style={{
+                width: 'auto',
+                minWidth: 260,
+                marginTop: 0,
+                padding: '6px 12px',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                border: `2px solid ${T.colors.earthCacao}`,
+                backgroundColor: '#FFFFFF',
+              }}
+            >
+              {parcels.map((p) => (
+                <option key={p.parcelId} value={p.parcelId}>
+                  {p.parcelName || p.producerName} — {p.municipality}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {activeParcel ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.78rem' }}>
+              <span
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: `1px solid ${T.colors.borderSubtle}`,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                }}
+              >
+                🌾 {activeParcel.areaHectares} hectáreas
+              </span>
+              <span
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: `1px solid ${T.colors.borderSubtle}`,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                }}
+              >
+                🌳 {activeParcel.shadeTreeCount} árboles de sombra
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </header>

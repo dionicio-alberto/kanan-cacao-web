@@ -1,5 +1,6 @@
 import {
   EudrStatus,
+  HistoricalParcelSnapshot,
   NdviAlertLevel,
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
@@ -157,6 +158,8 @@ interface RawPersistedParcel {
   acahual_removal_post_2020: boolean;
   has_verified_custf_permit: boolean;
   coordinates?: number[][];
+  extent_bbox?: [number, number, number, number];
+  historical_snapshots?: HistoricalParcelSnapshot[];
 }
 
 export interface PersistedParcelsWithMeta {
@@ -286,11 +289,82 @@ export async function fetchPersistedParcelsWithMeta(): Promise<PersistedParcelsW
     ...mapRawParcelToOverview(raw),
     parcelName: raw.parcel_name,
     coordinates: raw.coordinates,
+    extentBbox: raw.extent_bbox,
+    historicalSnapshots: raw.historical_snapshots,
   }));
   return {
     storageEngine: data.storage_engine || 'sqlite3_local',
     parcels,
   };
+}
+
+const HISTORICAL_FALLBACK_SPECS: Array<{
+  period_key: string;
+  label: string;
+  months_ago: number;
+}> = [
+  { period_key: 'registro_actual', label: 'Última foto al momento del registro', months_ago: 0 },
+  { period_key: 'hace_6_meses', label: 'Hace 6 meses', months_ago: 6 },
+  { period_key: 'hace_1_anio', label: 'Hace 1 año', months_ago: 12 },
+  { period_key: 'hace_2_anios', label: 'Hace 2 años', months_ago: 24 },
+  { period_key: 'hace_3_anios', label: 'Hace 3 años', months_ago: 36 },
+  { period_key: 'hace_4_anios', label: 'Hace 4 años', months_ago: 48 },
+  { period_key: 'hace_5_anios', label: 'Hace 5 años', months_ago: 60 },
+];
+
+export function buildHistoricalSnapshotsFallback(
+  parcelId: string,
+  coordinates: number[][]
+): HistoricalParcelSnapshot[] {
+  const { extentBbox } = buildSatelliteOrthoExportUrl(coordinates, 840, 480);
+  const [minLng, minLat, maxLng, maxLat] = extentBbox;
+  const now = new Date();
+
+  return HISTORICAL_FALLBACK_SPECS.map((spec) => {
+    const dt = new Date(now);
+    dt.setMonth(dt.getMonth() - spec.months_ago);
+    const epochParam = spec.months_ago > 0 ? `&time=${dt.getTime()}` : '';
+    return {
+      period_key: spec.period_key,
+      label: spec.label,
+      months_ago: spec.months_ago,
+      captured_date_iso: dt.toISOString().slice(0, 10),
+      extent_bbox: extentBbox,
+      direct_ortho_url:
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export' +
+        `?bbox=${minLng},${minLat},${maxLng},${maxLat}` +
+        `&bboxSR=4326&imageSR=4326&size=840,480&format=jpg&f=image${epochParam}`,
+      server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
+    };
+  });
+}
+
+export function getSnapshotImageSrc(snapshot: HistoricalParcelSnapshot): string {
+  if (snapshot.server_cached_image_path) {
+    return `${GEO_ENGINE_BASE_URL}${snapshot.server_cached_image_path}`;
+  }
+  return snapshot.direct_ortho_url;
+}
+
+export async function fetchParcelHistoricalSnapshotsLive(
+  parcelId: string
+): Promise<{
+  parcel_id: string;
+  persisted_on_server: boolean;
+  extent_bbox: GeoBboxTuple;
+  snapshots: HistoricalParcelSnapshot[];
+}> {
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-snapshots`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`No se pudieron cargar las fotos históricas: HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function fetchLiveSentinel2Scene(
@@ -326,6 +400,8 @@ function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
     acahualRemovalPost2020: Boolean(raw.acahual_removal_post_2020),
     hasVerifiedCustfPermit: Boolean(raw.has_verified_custf_permit),
     coordinates: raw.coordinates,
+    extentBbox: raw.extent_bbox,
+    historicalSnapshots: raw.historical_snapshots,
   };
 }
 
