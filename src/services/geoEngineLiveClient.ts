@@ -309,52 +309,52 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
 }> = [
   {
     period_key: 'registro_actual',
-    label: 'Última foto al registro (2025-06-09)',
+    label: 'Última foto al registro (02/11/2026)',
     months_ago: 0,
-    wayback_release: '43291',
-    ref_date: '2025-06-09',
+    wayback_release: 'mpc:S2A_MSIL2A_20261102T164701_R126_T15QVA_20261102T231820',
+    ref_date: '2026-11-02',
   },
   {
     period_key: 'hace_6_meses',
-    label: 'Hace 6 meses (2022-04-30)',
+    label: 'Hace 6 meses (06/05/2026)',
     months_ago: 6,
-    wayback_release: '36557',
-    ref_date: '2022-04-30',
+    wayback_release: 'mpc:S2A_MSIL2A_20260506T164701_R126_T15QVV_20260507T045223',
+    ref_date: '2026-05-06',
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 1 año (2021-03-24)',
+    label: 'Hace 1 año (20/11/2025)',
     months_ago: 12,
-    wayback_release: '4905',
-    ref_date: '2021-03-24',
+    wayback_release: 'mpc:S2B_MSIL2A_20251120T164509_R126_T15QVA_20251120T201427',
+    ref_date: '2025-11-20',
   },
   {
     period_key: 'hace_2_anios',
-    label: 'Hace 2 años (2019-02-24)',
+    label: 'Hace 2 años (25/11/2024)',
     months_ago: 24,
-    wayback_release: '48376',
-    ref_date: '2019-02-24',
+    wayback_release: 'mpc:S2B_MSIL2A_20241125T164539_R126_T15QVV_20241125T203601',
+    ref_date: '2024-11-25',
   },
   {
     period_key: 'hace_3_anios',
-    label: 'Hace 3 años (2017-02-12)',
+    label: 'Hace 3 años (12/10/2023)',
     months_ago: 36,
-    wayback_release: '239',
-    ref_date: '2017-02-12',
+    wayback_release: 'mpc:S2B_MSIL2A_20231012T164139_R126_T15QVA_20240925T214521',
+    ref_date: '2023-10-12',
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 4 años (2015-05-17)',
+    label: 'Hace 4 años (11/11/2022)',
     months_ago: 48,
-    wayback_release: '26751',
-    ref_date: '2015-05-17',
+    wayback_release: 'mpc:S2A_MSIL2A_20221111T164531_R126_T15QVA_20221112T061156',
+    ref_date: '2022-11-11',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 5 años (2013-03-31)',
+    label: 'Hace 5 años (11/12/2021)',
     months_ago: 60,
-    wayback_release: '1052',
-    ref_date: '2013-03-31',
+    wayback_release: 'mpc:S2B_MSIL2A_20211211T164659_R126_T15QVV_20211212T133414',
+    ref_date: '2021-12-11',
   },
 ];
 
@@ -443,9 +443,11 @@ export function computeWaybackTileLayout(
 
   for (let tx = minTx; tx <= maxTx; tx += 1) {
     for (let ty = minTy; ty <= maxTy; ty += 1) {
-      const tileUrl = waybackRelease.startsWith('s2cloudless-')
-        ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${zoom}/${ty}/${tx}.jpg`
-        : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`;
+      const tileUrl = waybackRelease.startsWith('mpc:')
+        ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/${zoom}/${tx}/${ty}.png?collection=sentinel-2-l2a&item=${encodeURIComponent(waybackRelease.slice(4))}&assets=visual&asset_bidx=visual%7C1,2,3`
+        : waybackRelease.startsWith('s2cloudless-')
+          ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${zoom}/${ty}/${tx}.jpg`
+          : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`;
       tiles.push({
         key: `${waybackRelease}-${zoom}-${tx}-${ty}`,
         url: tileUrl,

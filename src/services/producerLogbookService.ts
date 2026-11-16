@@ -372,6 +372,36 @@ export function getOrderedTimelapsePeriodKeys(
   return direction === 'forward' ? [...keys].reverse() : keys;
 }
 
+export function formatDisplayDateEs(isoOrTimestamp?: string | null): string {
+  if (!isoOrTimestamp) {
+    return '';
+  }
+  const clean = isoOrTimestamp.trim().slice(0, 10);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(clean);
+  if (!match) {
+    return isoOrTimestamp;
+  }
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+export function formatSnapshotLabelEs(snapshot: {
+  label: string;
+  captured_date_iso: string;
+}): string {
+  const formatted = formatDisplayDateEs(snapshot.captured_date_iso);
+  if (!formatted) {
+    return snapshot.label;
+  }
+  const isoPattern = /\(\d{4}-\d{2}-\d{2}\)/;
+  if (isoPattern.test(snapshot.label)) {
+    return snapshot.label.replace(isoPattern, `(${formatted})`);
+  }
+  if (snapshot.label.includes(`(${formatted})`)) {
+    return snapshot.label;
+  }
+  return `${snapshot.label.replace(/\s*\([^)]*\)\s*$/, '')} (${formatted})`;
+}
+
 export function getNextTimelapsePeriodKey(
   orderedPeriodKeys: string[],
   currentPeriodKey: string,

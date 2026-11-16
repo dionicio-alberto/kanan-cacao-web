@@ -13,6 +13,7 @@ import {
 } from '@/services/geoEngineLiveClient';
 import {
   buildClosedPolygonFromCenter,
+  formatDisplayDateEs,
   getProducerFriendlyParcelStatus,
   parseCoordinatePairsText,
 } from '@/services/producerLogbookService';
@@ -978,7 +979,7 @@ export default function ParcelsAndGeorefModule({
                     <span style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}>
                       Archivo: <strong>{doc.file_name}</strong> ·{' '}
                       {doc.verified_by_admin ? '✓ En regla' : 'Registrado'}
-                      {doc.uploaded_at ? ` · ${doc.uploaded_at.slice(0, 10)}` : ''}
+                      {doc.uploaded_at ? ` · ${formatDisplayDateEs(doc.uploaded_at)}` : ''}
                     </span>
                   </div>
 

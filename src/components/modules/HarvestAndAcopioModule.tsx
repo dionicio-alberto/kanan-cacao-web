@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { processScaleReceptionByRole } from '@/services/blindScaleAndTracesService';
 import {
+  formatDisplayDateEs,
   getProducerFriendlyParcelStatus,
   HarvestAcopioEntry,
 } from '@/services/producerLogbookService';
@@ -662,7 +663,7 @@ export default function HarvestAndAcopioModule({
             <tbody>
               {harvestEntries.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.harvestDate}</td>
+                  <td>{formatDisplayDateEs(item.harvestDate)}</td>
                   <td>
                     <strong>{item.parcelName}</strong>
                   </td>
