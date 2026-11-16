@@ -48,7 +48,7 @@ export default function KananCacaoPortalPage() {
   const [activeSection, setActiveSection] = useState<ProducerNavSection>('inicio');
 
   const [parcels, setParcels] = useState<ParcelAdminOverview[]>(INITIAL_PARCELS);
-  const [selectedParcelId, setSelectedParcelId] = useState<string>(INITIAL_PARCELS[0].parcelId);
+  const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [storageEngine, setStorageEngine] = useState<string>('demo');
 
   const [fieldLogs, setFieldLogs] = useState<FieldLogEntry[]>(INITIAL_FIELD_LOGS);
@@ -103,7 +103,6 @@ export default function KananCacaoPortalPage() {
       .then(({ storageEngine: engine, parcels: persisted }) => {
         if (active && persisted.length > 0) {
           setParcels(persisted);
-          setSelectedParcelId(persisted[0].parcelId);
           setStorageEngine(engine);
         }
       })
@@ -150,13 +149,16 @@ export default function KananCacaoPortalPage() {
   }
 
   const activeRole: WebUserRole = operatorProfile.role;
-  const selectedParcel = parcels.find((p) => p.parcelId === selectedParcelId) ?? parcels[0];
+  const filteredParcel = selectedParcelId
+    ? (parcels.find((p) => p.parcelId === selectedParcelId) ?? null)
+    : null;
+  const fallbackParcel = filteredParcel ?? parcels[0];
 
   const handleSignOut = async () => {
     await signOutSupabaseSession();
     setOperatorProfile(null);
     setParcels(INITIAL_PARCELS);
-    setSelectedParcelId(INITIAL_PARCELS[0].parcelId);
+    setSelectedParcelId(null);
     setGeorefStatusMsg(null);
     setGeorefErrorMsg(null);
   };
@@ -191,7 +193,7 @@ export default function KananCacaoPortalPage() {
       eudrStatus: 'VERDE',
       ndviAlertLevel: 'VIGOR_AGROFORESTAL_OPTIMO',
       meanNdvi: 0.78,
-      shadeTreeCount: payload.shadeTreeCount,
+      shadeTreeCount: 0,
       acahualRemovalPost2020: false,
       hasVerifiedCustfPermit: true,
       coordinates: payload.coordinates,
@@ -205,7 +207,7 @@ export default function KananCacaoPortalPage() {
         producerName: payload.producerName,
         municipality: payload.municipality,
         areaHectares: payload.areaHectares,
-        shadeTreeCount: payload.shadeTreeCount,
+        shadeTreeCount: 0,
         coordinates: payload.coordinates,
       });
 
@@ -239,7 +241,7 @@ export default function KananCacaoPortalPage() {
         activeSection={activeSection}
         onSelectSection={setActiveSection}
         parcels={parcels}
-        selectedParcelId={selectedParcel.parcelId}
+        selectedParcelId={selectedParcelId}
         onSelectParcel={setSelectedParcelId}
         operatorProfile={operatorProfile}
         storageEngine={storageEngine}
@@ -255,7 +257,7 @@ export default function KananCacaoPortalPage() {
           <DashboardHomeModule
             operatorName={operatorProfile.fullName}
             parcels={parcels}
-            selectedParcel={selectedParcel}
+            selectedParcel={fallbackParcel}
             fieldLogs={fieldLogs}
             harvestEntries={harvestEntries}
             onNavigate={setActiveSection}
@@ -265,7 +267,7 @@ export default function KananCacaoPortalPage() {
         {activeSection === 'parcelas' ? (
           <ParcelsAndGeorefModule
             parcels={parcels}
-            selectedParcel={selectedParcel}
+            selectedParcel={filteredParcel}
             onSelectParcel={setSelectedParcelId}
             onToggleCustf={handleToggleCustf}
             onCreateGeorefParcel={handleCreateGeorefParcel}
@@ -278,8 +280,8 @@ export default function KananCacaoPortalPage() {
         {activeSection === 'bitacora' ? (
           <FieldLogbookModule
             parcels={parcels}
-            selectedParcel={selectedParcel}
-            onSelectParcel={setSelectedParcelId}
+            selectedParcel={fallbackParcel}
+            onSelectParcel={(id) => setSelectedParcelId(id)}
             fieldLogs={fieldLogs}
             onAddFieldLog={(entry) => setFieldLogs((prev) => [entry, ...prev])}
           />
@@ -289,8 +291,8 @@ export default function KananCacaoPortalPage() {
           <HarvestAndAcopioModule
             activeRole={activeRole}
             parcels={parcels}
-            selectedParcel={selectedParcel}
-            onSelectParcel={setSelectedParcelId}
+            selectedParcel={fallbackParcel}
+            onSelectParcel={(id) => setSelectedParcelId(id)}
             harvestEntries={harvestEntries}
             onAddHarvestEntry={(entry) => setHarvestEntries((prev) => [entry, ...prev])}
           />

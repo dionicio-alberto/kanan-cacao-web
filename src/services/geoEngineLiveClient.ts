@@ -302,41 +302,89 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
   period_key: string;
   label: string;
   months_ago: number;
+  wayback_release: string;
+  ref_date: string;
 }> = [
-  { period_key: 'registro_actual', label: 'Última foto al momento del registro', months_ago: 0 },
-  { period_key: 'hace_6_meses', label: 'Hace 6 meses', months_ago: 6 },
-  { period_key: 'hace_1_anio', label: 'Hace 1 año', months_ago: 12 },
-  { period_key: 'hace_2_anios', label: 'Hace 2 años', months_ago: 24 },
-  { period_key: 'hace_3_anios', label: 'Hace 3 años', months_ago: 36 },
-  { period_key: 'hace_4_anios', label: 'Hace 4 años', months_ago: 48 },
-  { period_key: 'hace_5_anios', label: 'Hace 5 años', months_ago: 60 },
+  {
+    period_key: 'registro_actual',
+    label: 'Última foto al momento del registro',
+    months_ago: 0,
+    wayback_release: '43291',
+    ref_date: '2026-10-29',
+  },
+  {
+    period_key: 'hace_6_meses',
+    label: 'Hace 6 meses',
+    months_ago: 6,
+    wayback_release: '10842',
+    ref_date: '2026-05-28',
+  },
+  {
+    period_key: 'hace_1_anio',
+    label: 'Hace 1 año',
+    months_ago: 12,
+    wayback_release: '52930',
+    ref_date: '2024-05-09',
+  },
+  {
+    period_key: 'hace_2_anios',
+    label: 'Hace 2 años',
+    months_ago: 24,
+    wayback_release: '46399',
+    ref_date: '2023-05-03',
+  },
+  {
+    period_key: 'hace_3_anios',
+    label: 'Hace 3 años',
+    months_ago: 36,
+    wayback_release: '4905',
+    ref_date: '2022-06-29',
+  },
+  {
+    period_key: 'hace_4_anios',
+    label: 'Hace 4 años',
+    months_ago: 48,
+    wayback_release: '8432',
+    ref_date: '2021-07-21',
+  },
+  {
+    period_key: 'hace_5_anios',
+    label: 'Hace 5 años',
+    months_ago: 60,
+    wayback_release: '26751',
+    ref_date: '2020-04-08',
+  },
 ];
+
+function latLngToWebMercatorTile(lat: number, lng: number, zoom = 16): { row: number; col: number } {
+  const n = Math.pow(2, zoom);
+  const col = Math.floor(((lng + 180) / 360) * n);
+  const latRad = (Math.max(-85.051128, Math.min(85.051128, lat)) * Math.PI) / 180;
+  const row = Math.floor(((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2) * n);
+  return { row, col };
+}
 
 export function buildHistoricalSnapshotsFallback(
   parcelId: string,
   coordinates: number[][]
 ): HistoricalParcelSnapshot[] {
   const { extentBbox } = buildSatelliteOrthoExportUrl(coordinates, 840, 480);
-  const [minLng, minLat, maxLng, maxLat] = extentBbox;
-  const now = new Date();
+  const centerLng = (extentBbox[0] + extentBbox[2]) / 2;
+  const centerLat = (extentBbox[1] + extentBbox[3]) / 2;
+  const { row, col } = latLngToWebMercatorTile(centerLat, centerLng, 16);
 
-  return HISTORICAL_FALLBACK_SPECS.map((spec) => {
-    const dt = new Date(now);
-    dt.setMonth(dt.getMonth() - spec.months_ago);
-    const epochParam = spec.months_ago > 0 ? `&time=${dt.getTime()}` : '';
-    return {
-      period_key: spec.period_key,
-      label: spec.label,
-      months_ago: spec.months_ago,
-      captured_date_iso: dt.toISOString().slice(0, 10),
-      extent_bbox: extentBbox,
-      direct_ortho_url:
-        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export' +
-        `?bbox=${minLng},${minLat},${maxLng},${maxLat}` +
-        `&bboxSR=4326&imageSR=4326&size=840,480&format=jpg&f=image${epochParam}`,
-      server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
-    };
-  });
+  return HISTORICAL_FALLBACK_SPECS.map((spec) => ({
+    period_key: spec.period_key,
+    label: spec.label,
+    months_ago: spec.months_ago,
+    wayback_release: spec.wayback_release,
+    captured_date_iso: spec.ref_date,
+    extent_bbox: extentBbox,
+    direct_ortho_url:
+      `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/` +
+      `WMTS/1.0.0/default028mm/MapServer/tile/${spec.wayback_release}/16/${row}/${col}`,
+    server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
+  }));
 }
 
 export function getSnapshotImageSrc(snapshot: HistoricalParcelSnapshot): string {

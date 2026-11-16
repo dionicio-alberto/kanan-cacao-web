@@ -16,14 +16,13 @@ export interface CreateGeorefParcelPayload {
   producerName: string;
   municipality: string;
   areaHectares: number;
-  shadeTreeCount: number;
   coordinates: number[][];
 }
 
 interface ParcelsAndGeorefModuleProps {
   parcels: ParcelAdminOverview[];
-  selectedParcel: ParcelAdminOverview;
-  onSelectParcel: (parcelId: string) => void;
+  selectedParcel: ParcelAdminOverview | null;
+  onSelectParcel: (parcelId: string | null) => void;
   onToggleCustf: (parcelId: string) => void;
   onCreateGeorefParcel: (payload: CreateGeorefParcelPayload) => Promise<void>;
   savingGeoref: boolean;
@@ -50,7 +49,7 @@ export default function ParcelsAndGeorefModule({
   georefStatusMsg,
   georefErrorMsg,
 }: ParcelsAndGeorefModuleProps) {
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [municipalityFilter, setMunicipalityFilter] = useState('TODAS');
   const [captureMethod, setCaptureMethod] = useState<
     'MAPA_INTERACTIVO' | 'CENTRO_GPS' | 'ESQUINAS'
@@ -59,8 +58,7 @@ export default function ParcelsAndGeorefModule({
   const [parcelName, setParcelName] = useState('');
   const [producerName, setProducerName] = useState('');
   const [municipality, setMunicipality] = useState<string>('Comalcalco');
-  const [areaHectares, setAreaHectares] = useState('3.2');
-  const [shadeTreeCount, setShadeTreeCount] = useState('85');
+  const [areaHectares, setAreaHectares] = useState('0.00');
   const [centerLat, setCenterLat] = useState('18.2485');
   const [centerLng, setCenterLng] = useState('-93.2615');
   const [mapCoordinates, setMapCoordinates] = useState<number[][]>([]);
@@ -98,14 +96,15 @@ export default function ParcelsAndGeorefModule({
     event.preventDefault();
     setFormError(null);
 
-    const parsedArea = Number(areaHectares);
-    const parsedShade = Number(shadeTreeCount);
     if (!parcelName.trim() || !producerName.trim()) {
       setFormError('Escribe el nombre de la parcela y del productor.');
       return;
     }
-    if (!Number.isFinite(parsedArea) || parsedArea <= 0) {
-      setFormError('Indica cuántas hectáreas mide la parcela (mayor a 0).');
+
+    const rawArea = Number(areaHectares);
+    const parsedArea = Number((Number.isFinite(rawArea) ? rawArea : 0).toFixed(2));
+    if (parsedArea <= 0) {
+      setFormError('Selecciona las esquinas en el mapa o ingresa una superficie mayor a 0.00 ha.');
       return;
     }
 
@@ -114,7 +113,7 @@ export default function ParcelsAndGeorefModule({
       if (captureMethod === 'MAPA_INTERACTIVO') {
         if (mapCoordinates.length < 3) {
           setFormError(
-            'Da clic al menos en 3 esquinas del mapa interactivo para marcar la nueva parcela.'
+            'Marca al menos 3 esquinas dando clic sobre el mapa interactivo antes de guardar.'
           );
           return;
         }
@@ -140,156 +139,92 @@ export default function ParcelsAndGeorefModule({
       producerName: producerName.trim(),
       municipality,
       areaHectares: parsedArea,
-      shadeTreeCount: Number.isFinite(parsedShade) && parsedShade >= 0 ? parsedShade : 0,
       coordinates,
     });
     setParcelName('');
-    setShowCreateForm(false);
+    setProducerName('');
+    setMapCoordinates([]);
+    setAreaHectares('0.00');
+    setIsCreatingNew(false);
   };
 
-  return (
-    <div style={{ display: 'grid', gap: 22 }}>
-      <section
-        aria-labelledby="parcels-header-title"
-        style={{
-          backgroundColor: T.colors.surfaceCard,
-          border: `1.5px solid ${T.colors.borderSubtle}`,
-          borderRadius: 14,
-          padding: '22px 22px',
-          display: 'grid',
-          gap: 16,
-        }}
-      >
+  // VISTA 1: PÁGINA DEDICADA PARA AGREGAR UNA NUEVA PARCELA
+  if (isCreatingNew) {
+    return (
+      <div style={{ display: 'grid', gap: 18 }}>
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: 12,
+            gap: 10,
+          }}
+        >
+          <button
+            type="button"
+            className="btn-control"
+            onClick={() => setIsCreatingNew(false)}
+          >
+            ← Volver a parcelas
+          </button>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textSecondary }}>
+            Registro único en servidor
+          </span>
+        </div>
+
+        <section
+          aria-labelledby="new-parcel-page-title"
+          style={{
+            backgroundColor: T.colors.surfaceCard,
+            border: `2px solid ${T.colors.primaryGreen}`,
+            borderRadius: 14,
+            padding: '24px 22px',
+            display: 'grid',
+            gap: 16,
           }}
         >
           <div>
             <h1
-              id="parcels-header-title"
+              id="new-parcel-page-title"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-serif)',
-                fontSize: '1.5rem',
+                fontSize: '1.55rem',
                 color: T.colors.primaryGreen,
               }}
             >
-              Mis Parcelas y Georreferencia
+              Agregar Nueva Parcela y Georreferencia
             </h1>
             <p style={{ margin: '4px 0 0', fontSize: '0.9rem', color: T.colors.textSecondary }}>
-              Elige una parcela para ver su mapa satelital real o registra una nueva georreferencia
-              en campo.
+              Marca tu parcela directamente en el mapa interactivo dando clic en cada esquina. Las
+              hectáreas se calculan automáticamente con 2 decimales y el mapa se guarda una sola vez
+              en el servidor.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <select
-              aria-label="Filtrar parcelas por municipio"
-              value={municipalityFilter}
-              onChange={(e) => setMunicipalityFilter(e.target.value)}
-              className="field-input"
-              style={{ width: 'auto', marginTop: 0, padding: '8px 12px' }}
+          {formError ? (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 14px',
+                borderRadius: 8,
+                backgroundColor: T.colors.statusRedBg,
+                color: T.colors.statusRed,
+                border: '1px solid #B91C1C',
+                fontWeight: 700,
+                fontSize: '0.86rem',
+              }}
             >
-              <option value="TODAS">Todos los municipios ({parcels.length})</option>
-              {TABASCO_MUNICIPALITIES.map((mun) => (
-                <option key={mun} value={mun}>
-                  {mun}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className="btn-primary"
-              aria-expanded={showCreateForm}
-              onClick={() => setShowCreateForm((prev) => !prev)}
-            >
-              {showCreateForm ? 'Cerrar formulario' : '➕ Nueva georreferencia de parcela'}
-            </button>
-          </div>
-        </div>
-
-        {georefStatusMsg ? (
-          <div
-            role="status"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 8,
-              backgroundColor: T.colors.statusGreenBg,
-              color: T.colors.statusGreen,
-              border: '1px solid #15803D',
-              fontWeight: 700,
-              fontSize: '0.86rem',
-            }}
-          >
-            {georefStatusMsg}
-          </div>
-        ) : null}
-
-        {georefErrorMsg ? (
-          <div
-            role="alert"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 8,
-              backgroundColor: T.colors.statusRedBg,
-              color: T.colors.statusRed,
-              border: '1px solid #B91C1C',
-              fontWeight: 700,
-              fontSize: '0.86rem',
-            }}
-          >
-            {georefErrorMsg}
-          </div>
-        ) : null}
-
-        {showCreateForm ? (
-          <form
-            onSubmit={handleCreateSubmit}
-            style={{
-              backgroundColor: T.colors.surfaceElevated,
-              border: `2px solid ${T.colors.primaryGreen}`,
-              borderRadius: 12,
-              padding: 18,
-              display: 'grid',
-              gap: 14,
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', color: T.colors.primaryGreen }}>
-                Registrar Nueva Georreferencia en el Mapa
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: T.colors.textSecondary }}>
-                Ingresa los datos de tu parcela para trazar automáticamente sus linderos cerrados y
-                guardarlos en línea.
-              </p>
+              {formError}
             </div>
+          ) : null}
 
-            {formError ? (
-              <div
-                role="alert"
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  backgroundColor: T.colors.statusRedBg,
-                  color: T.colors.statusRed,
-                  fontWeight: 700,
-                  fontSize: '0.84rem',
-                }}
-              >
-                {formError}
-              </div>
-            ) : null}
-
+          <form onSubmit={handleCreateSubmit} style={{ display: 'grid', gap: 16 }}>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: 12,
               }}
             >
@@ -355,42 +290,36 @@ export default function ParcelsAndGeorefModule({
                   htmlFor="new-parcel-area"
                   style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}
                 >
-                  Superficie aproximada (hectáreas)
+                  Superficie calculada (hectáreas, 2 decimales)
                 </label>
                 <input
                   id="new-parcel-area"
                   type="number"
-                  step="0.1"
-                  min="0.25"
+                  step="any"
+                  min="0.01"
                   required
+                  readOnly={captureMethod === 'MAPA_INTERACTIVO'}
                   value={areaHectares}
                   onChange={(e) => setAreaHectares(e.target.value)}
+                  onBlur={() => {
+                    const num = Number(areaHectares);
+                    if (Number.isFinite(num) && num > 0) {
+                      setAreaHectares(num.toFixed(2));
+                    }
+                  }}
                   className="field-input"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="new-parcel-shade"
-                  style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}
-                >
-                  Árboles de sombra sembrados
-                </label>
-                <input
-                  id="new-parcel-shade"
-                  type="number"
-                  min="0"
-                  required
-                  value={shadeTreeCount}
-                  onChange={(e) => setShadeTreeCount(e.target.value)}
-                  className="field-input"
+                  style={{
+                    backgroundColor:
+                      captureMethod === 'MAPA_INTERACTIVO' ? T.colors.softGreenBg : '#FFFFFF',
+                    fontWeight: 700,
+                  }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                ¿Cómo quieres marcar la parcela?
+                Método de marcado:
               </span>
               <button
                 type="button"
@@ -404,7 +333,7 @@ export default function ParcelsAndGeorefModule({
                   color: captureMethod === 'MAPA_INTERACTIVO' ? '#FFFFFF' : T.colors.textPrimary,
                 }}
               >
-                🗺️ Marcar con clics en el mapa (Satelital / Tráfico)
+                🗺️ Seleccionar en mapa interactivo (Satelital / Calles)
               </button>
               <button
                 type="button"
@@ -434,13 +363,11 @@ export default function ParcelsAndGeorefModule({
 
             {captureMethod === 'MAPA_INTERACTIVO' ? (
               <InteractiveParcelMapPicker
-                initialCenterLat={selectedParcel.coordinates?.[0]?.[1] ?? 18.2545}
-                initialCenterLng={selectedParcel.coordinates?.[0]?.[0] ?? -93.2825}
+                initialCenterLat={selectedParcel?.coordinates?.[0]?.[1] ?? 18.2545}
+                initialCenterLng={selectedParcel?.coordinates?.[0]?.[0] ?? -93.2825}
                 onPolygonChange={(coords, estHa) => {
                   setMapCoordinates(coords);
-                  if (estHa > 0) {
-                    setAreaHectares(String(estHa));
-                  }
+                  setAreaHectares(estHa > 0 ? estHa.toFixed(2) : '0.00');
                 }}
               />
             ) : captureMethod === 'CENTRO_GPS' ? (
@@ -457,7 +384,7 @@ export default function ParcelsAndGeorefModule({
                       htmlFor="new-center-lat"
                       style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}
                     >
-                      Latitud del terreno (Norte)
+                      Latitud del terreno
                     </label>
                     <input
                       id="new-center-lat"
@@ -472,7 +399,7 @@ export default function ParcelsAndGeorefModule({
                       htmlFor="new-center-lng"
                       style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}
                     >
-                      Longitud del terreno (Oeste)
+                      Longitud del terreno
                     </label>
                     <input
                       id="new-center-lng"
@@ -522,138 +449,429 @@ export default function ParcelsAndGeorefModule({
               <button
                 type="button"
                 className="btn-control"
-                onClick={() => setShowCreateForm(false)}
+                onClick={() => setIsCreatingNew(false)}
                 disabled={savingGeoref}
               >
                 Cancelar
               </button>
               <button type="submit" className="btn-primary" disabled={savingGeoref}>
                 {savingGeoref
-                  ? 'Guardando georreferencia en mapa...'
-                  : 'Guardar parcela georreferenciada'}
+                  ? 'Guardando georreferencia y fotos en servidor...'
+                  : 'Guardar nueva parcela'}
               </button>
             </div>
           </form>
-        ) : null}
+        </section>
+      </div>
+    );
+  }
 
+  // VISTA 2: PÁGINA DE DETALLE DE LA PARCELA SELECCIONADA (CUANDO HAY PARCELA ACTIVA)
+  if (selectedParcel) {
+    const friendly = getProducerFriendlyParcelStatus(selectedParcel);
+    const toneColors =
+      friendly.forestStatusTone === 'verde'
+        ? { bg: T.colors.statusGreenBg, fg: T.colors.statusGreen, border: '#15803D' }
+        : friendly.forestStatusTone === 'revision'
+          ? { bg: T.colors.statusWarningBg, fg: T.colors.statusWarning, border: '#B45309' }
+          : { bg: T.colors.statusRedBg, fg: T.colors.statusRed, border: '#B91C1C' };
+
+    return (
+      <div style={{ display: 'grid', gap: 20 }}>
         <div
           style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
+          <button
+            type="button"
+            className="btn-control"
+            onClick={() => onSelectParcel(null)}
+          >
+            ← Ver menú de todas las parcelas
+          </button>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setIsCreatingNew(true)}
+          >
+            ➕ Agregar nueva parcela
+          </button>
+        </div>
+
+        {georefStatusMsg ? (
+          <div
+            role="status"
+            style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              backgroundColor: T.colors.statusGreenBg,
+              color: T.colors.statusGreen,
+              border: '1px solid #15803D',
+              fontWeight: 700,
+              fontSize: '0.86rem',
+            }}
+          >
+            {georefStatusMsg}
+          </div>
+        ) : null}
+
+        {georefErrorMsg ? (
+          <div
+            role="alert"
+            style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              backgroundColor: T.colors.statusRedBg,
+              color: T.colors.statusRed,
+              border: '1px solid #B91C1C',
+              fontWeight: 700,
+              fontSize: '0.86rem',
+            }}
+          >
+            {georefErrorMsg}
+          </div>
+        ) : null}
+
+        <section
+          aria-labelledby="parcel-detail-title"
+          style={{
+            backgroundColor: T.colors.surfaceCard,
+            border: `1.5px solid ${T.colors.borderSubtle}`,
+            borderRadius: 14,
+            padding: '22px 22px',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
             gap: 14,
           }}
         >
-          {visibleParcels.map((p) => {
-            const isSelected = p.parcelId === selectedParcel.parcelId;
-            const friendly = getProducerFriendlyParcelStatus(p);
-            const toneColors =
-              friendly.forestStatusTone === 'verde'
-                ? { bg: T.colors.statusGreenBg, fg: T.colors.statusGreen, border: '#15803D' }
-                : friendly.forestStatusTone === 'revision'
-                  ? { bg: T.colors.statusWarningBg, fg: T.colors.statusWarning, border: '#B45309' }
-                  : { bg: T.colors.statusRedBg, fg: T.colors.statusRed, border: '#B91C1C' };
-
-            return (
-              <article
-                key={p.parcelId}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <div>
+              <span
                 style={{
-                  backgroundColor: isSelected ? T.colors.softGreenBg : T.colors.surfaceElevated,
-                  border: `2px solid ${isSelected ? T.colors.primaryGreen : T.colors.borderSubtle}`,
-                  borderRadius: 12,
-                  padding: 16,
-                  display: 'grid',
-                  gap: 10,
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  color: T.colors.earthCacao,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectParcel(p.parcelId)}
+                INFORMACIÓN GENERAL DE LA PARCELA
+              </span>
+              <h1
+                id="parcel-detail-title"
+                style={{
+                  margin: '4px 0 0',
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '1.6rem',
+                  color: T.colors.primaryGreen,
+                }}
+              >
+                {selectedParcel.parcelName || selectedParcel.producerName}
+              </h1>
+            </div>
+
+            <span
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                padding: '5px 12px',
+                borderRadius: 8,
+                backgroundColor: toneColors.bg,
+                color: toneColors.fg,
+                border: `1.5px solid ${toneColors.border}`,
+              }}
+            >
+              {friendly.forestStatusLabel}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceElevated,
+                border: `1px solid ${T.colors.borderSubtle}`,
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: '0.76rem', color: T.colors.textSecondary }}>
+                Productor responsable
+              </div>
+              <strong style={{ fontSize: '0.96rem' }}>{selectedParcel.producerName}</strong>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceElevated,
+                border: `1px solid ${T.colors.borderSubtle}`,
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: '0.76rem', color: T.colors.textSecondary }}>
+                Municipio y superficie
+              </div>
+              <strong style={{ fontSize: '0.96rem' }}>
+                {selectedParcel.municipality} · {selectedParcel.areaHectares.toFixed(2)} hectáreas
+              </strong>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceElevated,
+                border: `1px solid ${T.colors.borderSubtle}`,
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: '0.76rem', color: T.colors.textSecondary }}>
+                Salud del cacaotal
+              </div>
+              <strong style={{ fontSize: '0.96rem', color: T.colors.primaryGreen }}>
+                {friendly.canopyHealthLabel}
+              </strong>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceElevated,
+                border: `1px solid ${T.colors.borderSubtle}`,
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: '0.76rem', color: T.colors.textSecondary }}>
+                Papeles y constancia
+              </div>
+              <strong
+                style={{
+                  fontSize: '0.94rem',
+                  color: friendly.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
+                }}
+              >
+                {friendly.papersStatusLabel}
+              </strong>
+            </div>
+          </div>
+
+          {friendly.needsPaperCheck ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn-control"
+                onClick={() => onToggleCustf(selectedParcel.parcelId)}
+                style={{ fontSize: '0.82rem', padding: '7px 12px' }}
+              >
+                {selectedParcel.hasVerifiedCustfPermit
+                  ? 'Marcar constancia ambiental como pendiente'
+                  : 'Confirmar constancia de limpieza en regla'}
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        <LiveGeoEnginePanel parcel={selectedParcel} />
+      </div>
+    );
+  }
+
+  // VISTA 3: MENÚ DE TODAS LAS PARCELAS (CUANDO NO HAY UNA PARCELA SELECCIONADA)
+  return (
+    <section
+      aria-labelledby="parcels-menu-title"
+      style={{
+        backgroundColor: T.colors.surfaceCard,
+        border: `1.5px solid ${T.colors.borderSubtle}`,
+        borderRadius: 14,
+        padding: '22px 22px',
+        display: 'grid',
+        gap: 16,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div>
+          <h1
+            id="parcels-menu-title"
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-serif)',
+              fontSize: '1.5rem',
+              color: T.colors.primaryGreen,
+            }}
+          >
+            Menú de Parcelas Registradas ({parcels.length})
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: '0.9rem', color: T.colors.textSecondary }}>
+            Haz clic sobre cualquier parcela para entrar a su ficha completa y ver sus fotografías
+            satelitales históricas.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            aria-label="Filtrar menú por municipio"
+            value={municipalityFilter}
+            onChange={(e) => setMunicipalityFilter(e.target.value)}
+            className="field-input"
+            style={{ width: 'auto', marginTop: 0, padding: '8px 12px' }}
+          >
+            <option value="TODAS">Todos los municipios ({parcels.length})</option>
+            {TABASCO_MUNICIPALITIES.map((mun) => (
+              <option key={mun} value={mun}>
+                {mun}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setIsCreatingNew(true)}
+          >
+            ➕ Agregar nueva parcela
+          </button>
+        </div>
+      </div>
+
+      {georefStatusMsg ? (
+        <div
+          role="status"
+          style={{
+            padding: '10px 14px',
+            borderRadius: 8,
+            backgroundColor: T.colors.statusGreenBg,
+            color: T.colors.statusGreen,
+            border: '1px solid #15803D',
+            fontWeight: 700,
+            fontSize: '0.86rem',
+          }}
+        >
+          {georefStatusMsg}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          gap: 14,
+        }}
+      >
+        {visibleParcels.map((p) => {
+          const friendly = getProducerFriendlyParcelStatus(p);
+          const toneColors =
+            friendly.forestStatusTone === 'verde'
+              ? { bg: T.colors.statusGreenBg, fg: T.colors.statusGreen, border: '#15803D' }
+              : friendly.forestStatusTone === 'revision'
+                ? { bg: T.colors.statusWarningBg, fg: T.colors.statusWarning, border: '#B45309' }
+                : { bg: T.colors.statusRedBg, fg: T.colors.statusRed, border: '#B91C1C' };
+
+          return (
+            <button
+              key={p.parcelId}
+              type="button"
+              onClick={() => onSelectParcel(p.parcelId)}
+              style={{
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: T.colors.surfaceElevated,
+                border: `1.5px solid ${T.colors.borderSubtle}`,
+                borderRadius: 12,
+                padding: 16,
+                display: 'grid',
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                }}
+              >
+                <strong style={{ fontSize: '1.04rem', color: T.colors.primaryGreen }}>
+                  {p.parcelName || p.producerName}
+                </strong>
+                <span
                   style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    display: 'grid',
-                    gap: 8,
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    backgroundColor: toneColors.bg,
+                    color: toneColors.fg,
+                    border: `1px solid ${toneColors.border}`,
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: 6,
-                    }}
-                  >
-                    <strong style={{ fontSize: '1rem', color: T.colors.textPrimary }}>
-                      {p.parcelName || p.producerName}
-                    </strong>
-                    <span
-                      style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 6,
-                        backgroundColor: toneColors.bg,
-                        color: toneColors.fg,
-                        border: `1px solid ${toneColors.border}`,
-                      }}
-                    >
-                      {friendly.forestStatusLabel}
-                    </span>
-                  </div>
+                  {friendly.forestStatusLabel}
+                </span>
+              </div>
 
-                  <div style={{ fontSize: '0.84rem', color: T.colors.textSecondary }}>
-                    Productor: <strong>{p.producerName}</strong> · {p.municipality} ·{' '}
-                    <strong>{p.areaHectares} ha</strong>
-                  </div>
+              <div style={{ fontSize: '0.84rem', color: T.colors.textSecondary }}>
+                Productor: <strong>{p.producerName}</strong> · {p.municipality} ·{' '}
+                <strong>{p.areaHectares.toFixed(2)} ha</strong>
+              </div>
 
-                  <div
-                    style={{
-                      backgroundColor: T.colors.surfaceCard,
-                      border: `1px solid ${T.colors.borderSubtle}`,
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      fontSize: '0.82rem',
-                      display: 'grid',
-                      gap: 3,
-                    }}
-                  >
-                    <div>
-                      🌱 <strong>Cacaotal:</strong> {friendly.canopyHealthLabel}
-                    </div>
-                    <div>
-                      🌳 <strong>Sombra:</strong> {p.shadeTreeCount} árboles registrados
-                    </div>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        color: friendly.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
-                      }}
-                    >
-                      📄 {friendly.papersStatusLabel}
-                    </div>
-                  </div>
-                </button>
+              <div
+                style={{
+                  backgroundColor: T.colors.surfaceCard,
+                  border: `1px solid ${T.colors.borderSubtle}`,
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  fontSize: '0.82rem',
+                  display: 'grid',
+                  gap: 3,
+                }}
+              >
+                <div>
+                  🌱 <strong>Cacaotal:</strong> {friendly.canopyHealthLabel}
+                </div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    color: friendly.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
+                  }}
+                >
+                  📄 {friendly.papersStatusLabel}
+                </div>
+              </div>
 
-                {friendly.needsPaperCheck ? (
-                  <button
-                    type="button"
-                    className="btn-control"
-                    onClick={() => onToggleCustf(p.parcelId)}
-                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                  >
-                    {p.hasVerifiedCustfPermit
-                      ? 'Marcar constancia ambiental como pendiente'
-                      : 'Confirmar constancia de limpieza en regla'}
-                  </button>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <LiveGeoEnginePanel parcel={selectedParcel} />
-    </div>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.primaryGreen }}>
+                Abrir página de esta parcela →
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
