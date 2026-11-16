@@ -84,3 +84,55 @@ describe('Portal centrado en el productor — Lenguaje accesible, bitácora y ge
     expect(parsed[0]).toEqual(parsed[3]);
   });
 });
+
+  it('calcula coordenadas desde clics en mapa Web Mercator y área en hectáreas', async () => {
+    const {
+      latLngToScreenPoint,
+      screenClickToLatLng,
+      estimatePolygonHectares,
+    } = await import('@/services/producerLogbookService');
+
+    const centerLat = 18.2545;
+    const centerLng = -93.2825;
+    const pickedCenter = screenClickToLatLng(380, 210, 760, 420, centerLat, centerLng, 16);
+    expect(pickedCenter.lat).toBeCloseTo(centerLat, 4);
+    expect(pickedCenter.lng).toBeCloseTo(centerLng, 4);
+
+    const screenPt = latLngToScreenPoint(centerLat, centerLng, 760, 420, centerLat, centerLng, 16);
+    expect(screenPt.x).toBeCloseTo(380, 1);
+    expect(screenPt.y).toBeCloseTo(210, 1);
+
+    const rectCoords = [
+      [-93.2845, 18.256],
+      [-93.281, 18.256],
+      [-93.281, 18.2525],
+      [-93.2845, 18.2525],
+      [-93.2845, 18.256],
+    ];
+    const ha = estimatePolygonHectares(rectCoords);
+    expect(ha).toBeGreaterThan(10);
+    expect(ha).toBeLessThan(20);
+  });
+
+  it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 años atrás', async () => {
+    const { buildHistoricalSnapshotsFallback } = await import('@/services/geoEngineLiveClient');
+
+    const coords = [
+      [-93.2845, 18.256],
+      [-93.281, 18.256],
+      [-93.281, 18.2525],
+      [-93.2845, 18.2525],
+      [-93.2845, 18.256],
+    ];
+    const snapshots = buildHistoricalSnapshotsFallback('PAR-TEST-5Y', coords);
+    expect(snapshots).toHaveLength(7);
+    expect(snapshots.map((s) => s.period_key)).toEqual([
+      'registro_actual',
+      'hace_6_meses',
+      'hace_1_anio',
+      'hace_2_anios',
+      'hace_3_anios',
+      'hace_4_anios',
+      'hace_5_anios',
+    ]);
+  });

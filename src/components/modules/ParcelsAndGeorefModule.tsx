@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import InteractiveParcelMapPicker from '@/components/InteractiveParcelMapPicker';
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import {
   buildClosedPolygonFromCenter,
@@ -51,7 +52,9 @@ export default function ParcelsAndGeorefModule({
 }: ParcelsAndGeorefModuleProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [municipalityFilter, setMunicipalityFilter] = useState('TODAS');
-  const [captureMethod, setCaptureMethod] = useState<'CENTRO_GPS' | 'ESQUINAS'>('CENTRO_GPS');
+  const [captureMethod, setCaptureMethod] = useState<
+    'MAPA_INTERACTIVO' | 'CENTRO_GPS' | 'ESQUINAS'
+  >('MAPA_INTERACTIVO');
 
   const [parcelName, setParcelName] = useState('');
   const [producerName, setProducerName] = useState('');
@@ -60,6 +63,7 @@ export default function ParcelsAndGeorefModule({
   const [shadeTreeCount, setShadeTreeCount] = useState('85');
   const [centerLat, setCenterLat] = useState('18.2485');
   const [centerLng, setCenterLng] = useState('-93.2615');
+  const [mapCoordinates, setMapCoordinates] = useState<number[][]>([]);
   const [customCoordsText, setCustomCoordsText] = useState(
     '-93.263, 18.250\n-93.259, 18.250\n-93.259, 18.247\n-93.263, 18.247'
   );
@@ -107,7 +111,15 @@ export default function ParcelsAndGeorefModule({
 
     let coordinates: number[][];
     try {
-      if (captureMethod === 'ESQUINAS') {
+      if (captureMethod === 'MAPA_INTERACTIVO') {
+        if (mapCoordinates.length < 3) {
+          setFormError(
+            'Da clic al menos en 3 esquinas del mapa interactivo para marcar la nueva parcela.'
+          );
+          return;
+        }
+        coordinates = mapCoordinates;
+      } else if (captureMethod === 'ESQUINAS') {
         coordinates = parseCoordinatePairsText(customCoordsText);
       } else {
         const lat = Number(centerLat);
@@ -378,8 +390,22 @@ export default function ParcelsAndGeorefModule({
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                ¿Cómo quieres marcar la ubicación?
+                ¿Cómo quieres marcar la parcela?
               </span>
+              <button
+                type="button"
+                onClick={() => setCaptureMethod('MAPA_INTERACTIVO')}
+                className="btn-control"
+                style={{
+                  backgroundColor:
+                    captureMethod === 'MAPA_INTERACTIVO'
+                      ? T.colors.primaryGreen
+                      : T.colors.surfaceCard,
+                  color: captureMethod === 'MAPA_INTERACTIVO' ? '#FFFFFF' : T.colors.textPrimary,
+                }}
+              >
+                🗺️ Marcar con clics en el mapa (Satelital / Tráfico)
+              </button>
               <button
                 type="button"
                 onClick={() => setCaptureMethod('CENTRO_GPS')}
@@ -406,7 +432,18 @@ export default function ParcelsAndGeorefModule({
               </button>
             </div>
 
-            {captureMethod === 'CENTRO_GPS' ? (
+            {captureMethod === 'MAPA_INTERACTIVO' ? (
+              <InteractiveParcelMapPicker
+                initialCenterLat={selectedParcel.coordinates?.[0]?.[1] ?? 18.2545}
+                initialCenterLng={selectedParcel.coordinates?.[0]?.[0] ?? -93.2825}
+                onPolygonChange={(coords, estHa) => {
+                  setMapCoordinates(coords);
+                  if (estHa > 0) {
+                    setAreaHectares(String(estHa));
+                  }
+                }}
+              />
+            ) : captureMethod === 'CENTRO_GPS' ? (
               <div style={{ display: 'grid', gap: 10 }}>
                 <div
                   style={{
