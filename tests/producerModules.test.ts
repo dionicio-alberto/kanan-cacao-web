@@ -165,8 +165,21 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
     '/api/v1/parcels/PAR-TEST-5Y/documents/doc-1/file',
   );
 
-  const { getNextTimelapsePeriodKey, getOrderedTimelapsePeriodKeys } =
-    await import('@/services/producerLogbookService');
+  const {
+    formatDisplayDateEs,
+    formatSnapshotLabelEs,
+    getNextTimelapsePeriodKey,
+    getOrderedTimelapsePeriodKeys,
+  } = await import('@/services/producerLogbookService');
+  expect(formatDisplayDateEs('1998-11-15')).toBe('15/11/1998');
+  expect(formatDisplayDateEs('2026-11-16T02:48:58+00:00')).toBe('16/11/2026');
+  expect(
+    formatSnapshotLabelEs({
+      label: 'Hace 5 años (2021-12-11)',
+      captured_date_iso: '2021-12-11',
+    }),
+  ).toBe('Hace 5 años (11/12/2021)');
+
   const forwardOrder = getOrderedTimelapsePeriodKeys(snapshots, 'forward');
   expect(forwardOrder[0]).toBe('hace_5_anios');
   expect(forwardOrder[forwardOrder.length - 1]).toBe('registro_actual');
