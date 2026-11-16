@@ -3,9 +3,9 @@ import './globals.css';
 import { NATURISTA_WEB_THEME } from '@/theme/naturistaWebTheme';
 
 export const metadata = {
-  title: 'Kanan Cacao: Consola Operativa ASTRA',
+  title: 'Kanan Cacao · Portal del Productor y Acopio en Tabasco',
   description:
-    'Pasaporte digital geoespacial, cumplimiento EUDR 2020, salud NDVI Sentinel-2, báscula ciega, GS1 EPCIS 2.0 y bonos de carbono en Tabasco.',
+    'Mapa satelital de parcelas de cacao, bitácora diaria con fotos, registro de cosecha en mesa de acopio y bonos de carbono comunitarios en Tabasco.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
