@@ -76,17 +76,29 @@ export default function ProducerTopNav({
               style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: 6,
-                padding: '2px 4px',
+                width: 28,
+                height: 28,
+                padding: 2,
+                boxSizing: 'border-box',
+                aspectRatio: '1 / 1',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
               <img
-                src="/brand/kanan-cacao-logo.png"
-                alt="Logo Kanan Cacao"
-                width={22}
-                height={22}
-                style={{ display: 'block', objectFit: 'contain' }}
+                src="/brand/kanan-cacao-icon.svg"
+                alt="Icono Kanan Cacao"
+                width={24}
+                height={24}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  aspectRatio: '1 / 1',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
               />
             </span>
             <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>Kanan Cacao</span>
