@@ -35,7 +35,9 @@ export interface CreateGeorefParcelPayload {
 interface ParcelsAndGeorefModuleProps {
   parcels: ParcelAdminOverview[];
   selectedParcel: ParcelAdminOverview | null;
+  operatorProfile?: { fullName: string; role: string } | null;
   onSelectParcel: (parcelId: string | null) => void;
+  onParcelUpdated?: (parcel: ParcelAdminOverview) => void;
   onUpdateParcelSnapshots?: (parcelId: string, snapshots: HistoricalParcelSnapshot[]) => void;
   onUpdateParcelDocuments?: (parcelId: string, documents: ParcelLegalDocument[]) => void;
   onToggleCustf: (parcelId: string) => void;
@@ -57,7 +59,9 @@ const TABASCO_MUNICIPALITIES = [
 export default function ParcelsAndGeorefModule({
   parcels,
   selectedParcel,
+  operatorProfile,
   onSelectParcel,
+  onParcelUpdated,
   onUpdateParcelSnapshots,
   onUpdateParcelDocuments,
   onToggleCustf,
@@ -181,15 +185,22 @@ export default function ParcelsAndGeorefModule({
     let snaps: HistoricalParcelSnapshot[] = [];
     const hasRealSnaps =
       Array.isArray(parcelItem.historicalSnapshots) &&
-      parcelItem.historicalSnapshots.length === 7 &&
-      parcelItem.historicalSnapshots.every((item) => item.capture_source === 'real_src_date');
+      parcelItem.historicalSnapshots.length >= 5 &&
+      parcelItem.historicalSnapshots.length <= 7 &&
+      parcelItem.historicalSnapshots.every(
+        (item) => item.capture_source === 'real_src_date' && item.high_res_verified !== false,
+      );
 
     if (hasRealSnaps && parcelItem.historicalSnapshots) {
       snaps = parcelItem.historicalSnapshots;
     } else {
       try {
         const res = await fetchParcelHistoricalSnapshotsLive(parcelItem.parcelId);
-        if (Array.isArray(res.snapshots) && res.snapshots.length === 7) {
+        if (
+          Array.isArray(res.snapshots) &&
+          res.snapshots.length >= 5 &&
+          res.snapshots.length <= 7
+        ) {
           snaps = res.snapshots;
           if (onUpdateParcelSnapshots) {
             onUpdateParcelSnapshots(parcelItem.parcelId, snaps);
@@ -1013,7 +1024,11 @@ export default function ParcelsAndGeorefModule({
           )}
         </section>
 
-        <LiveGeoEnginePanel parcel={selectedParcel} />
+        <LiveGeoEnginePanel
+          parcel={selectedParcel}
+          operatorProfile={operatorProfile}
+          onParcelUpdated={onParcelUpdated}
+        />
       </div>
     );
   }

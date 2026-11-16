@@ -191,4 +191,14 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(backwardOrder[backwardOrder.length - 1]).toBe('hace_5_anios');
   expect(getNextTimelapsePeriodKey(backwardOrder, 'registro_actual')).toBe('hace_6_meses');
   expect(getNextTimelapsePeriodKey(backwardOrder, 'hace_5_anios')).toBe('registro_actual');
+
+  const { canAdminEditRegistrationDate, isAmazonRegistrationConfirmValid } =
+    await import('@/services/producerLogbookService');
+  expect(canAdminEditRegistrationDate('admin_astra')).toBe(true);
+  expect(canAdminEditRegistrationDate('acopiador')).toBe(false);
+  expect(canAdminEditRegistrationDate('auditor_sustentabilidad')).toBe(false);
+  expect(canAdminEditRegistrationDate(null)).toBe(false);
+  expect(isAmazonRegistrationConfirmValid('confirmar')).toBe(true);
+  expect(isAmazonRegistrationConfirmValid(' CONFIRMAR ')).toBe(true);
+  expect(isAmazonRegistrationConfirmValid('si')).toBe(false);
 });
