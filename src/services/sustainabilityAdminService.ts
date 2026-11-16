@@ -11,12 +11,24 @@ export interface HistoricalParcelSnapshot {
   wayback_release?: string;
   capture_source?: string;
   pixel_cloud_checked?: boolean;
+  high_res_verified?: boolean;
+  sharpness_g1?: number;
+  resolution_label?: string;
   cloud_cover_pct?: number;
   captured_date_iso: string;
   extent_bbox: [number, number, number, number];
   direct_ortho_url: string;
   cached_image_url?: string | null;
   server_cached_image_path: string;
+}
+
+export interface RegistrationDateAuditEntry {
+  previous_date_iso: string;
+  new_date_iso: string;
+  changed_by: string;
+  changed_by_role: string;
+  changed_at_iso: string;
+  confirmation_text: string;
 }
 
 export interface ParcelLegalDocument {
@@ -47,6 +59,7 @@ export interface ParcelAdminOverview {
   coordinates?: number[][];
   extentBbox?: [number, number, number, number];
   registeredAtIso?: string;
+  registrationAuditLog?: RegistrationDateAuditEntry[];
   documents?: ParcelLegalDocument[];
   historicalSnapshots?: HistoricalParcelSnapshot[];
 }

@@ -413,3 +413,11 @@ export function getNextTimelapsePeriodKey(
   const nextIdx = idx === -1 ? 0 : (idx + 1) % orderedPeriodKeys.length;
   return orderedPeriodKeys[nextIdx];
 }
+
+export function canAdminEditRegistrationDate(role?: string | null): boolean {
+  return (role || '').trim().toLowerCase() === 'admin_astra';
+}
+
+export function isAmazonRegistrationConfirmValid(confirmationInput: string): boolean {
+  return confirmationInput.trim().toLowerCase() === 'confirmar';
+}
