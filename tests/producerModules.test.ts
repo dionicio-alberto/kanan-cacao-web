@@ -139,7 +139,8 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(new Set(releases).size).toBe(7);
   expect(new Set(dates).size).toBe(7);
   expect(snapshots.every((s) => s.capture_source === 'real_src_date')).toBe(true);
-  expect(computeWaybackTileLayout(coords, '43291').length).toBeGreaterThan(0);
+  expect(releases.every((r) => Boolean(r && r.startsWith('s2cloudless-')))).toBe(true);
+  expect(computeWaybackTileLayout(coords, 's2cloudless-2025_3857').length).toBeGreaterThan(0);
 
   const tinyPolygon = [
     [-93.2845, 18.256],
