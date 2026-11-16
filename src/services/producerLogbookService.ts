@@ -3,7 +3,8 @@ import {
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
 
-export type ProducerNavSection = 'inicio' | 'parcelas' | 'bitacora' | 'cosecha' | 'carbono';
+export type ProducerNavSection =
+  'inicio' | 'parcelas' | 'bitacora' | 'cosecha' | 'carbono' | 'admin_panel';
 
 export type FieldActivityType =
   | 'FERTILIZACION'
