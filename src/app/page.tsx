@@ -269,6 +269,13 @@ export default function KananCacaoPortalPage() {
             parcels={parcels}
             selectedParcel={filteredParcel}
             onSelectParcel={setSelectedParcelId}
+            onUpdateParcelSnapshots={(parcelId, snaps) =>
+              setParcels((prev) =>
+                prev.map((item) =>
+                  item.parcelId === parcelId ? { ...item, historicalSnapshots: snaps } : item
+                )
+              )
+            }
             onToggleCustf={handleToggleCustf}
             onCreateGeorefParcel={handleCreateGeorefParcel}
             savingGeoref={savingGeoref}

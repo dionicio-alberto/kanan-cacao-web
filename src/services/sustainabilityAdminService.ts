@@ -9,6 +9,8 @@ export interface HistoricalParcelSnapshot {
   label: string;
   months_ago: number;
   wayback_release?: string;
+  capture_source?: string;
+  cloud_cover_pct?: number;
   captured_date_iso: string;
   extent_bbox: [number, number, number, number];
   direct_ortho_url: string;

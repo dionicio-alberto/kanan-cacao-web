@@ -4,11 +4,19 @@ import React, { useState } from 'react';
 import InteractiveParcelMapPicker from '@/components/InteractiveParcelMapPicker';
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import {
+  buildHistoricalSnapshotsFallback,
+  fetchParcelHistoricalSnapshotsLive,
+  preloadParcelHistoricalTiles,
+} from '@/services/geoEngineLiveClient';
+import {
   buildClosedPolygonFromCenter,
   getProducerFriendlyParcelStatus,
   parseCoordinatePairsText,
 } from '@/services/producerLogbookService';
-import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
+import {
+  HistoricalParcelSnapshot,
+  ParcelAdminOverview,
+} from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
 export interface CreateGeorefParcelPayload {
@@ -23,6 +31,7 @@ interface ParcelsAndGeorefModuleProps {
   parcels: ParcelAdminOverview[];
   selectedParcel: ParcelAdminOverview | null;
   onSelectParcel: (parcelId: string | null) => void;
+  onUpdateParcelSnapshots?: (parcelId: string, snapshots: HistoricalParcelSnapshot[]) => void;
   onToggleCustf: (parcelId: string) => void;
   onCreateGeorefParcel: (payload: CreateGeorefParcelPayload) => Promise<void>;
   savingGeoref: boolean;
@@ -43,6 +52,7 @@ export default function ParcelsAndGeorefModule({
   parcels,
   selectedParcel,
   onSelectParcel,
+  onUpdateParcelSnapshots,
   onToggleCustf,
   onCreateGeorefParcel,
   savingGeoref,
@@ -51,6 +61,9 @@ export default function ParcelsAndGeorefModule({
 }: ParcelsAndGeorefModuleProps) {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [municipalityFilter, setMunicipalityFilter] = useState('TODAS');
+  const [preloadingParcelId, setPreloadingParcelId] = useState<string | null>(null);
+  const [preloadDoneCount, setPreloadDoneCount] = useState<number>(0);
+  const [preloadTotalCount, setPreloadTotalCount] = useState<number>(7);
   const [captureMethod, setCaptureMethod] = useState<
     'MAPA_INTERACTIVO' | 'CENTRO_GPS' | 'ESQUINAS'
   >('MAPA_INTERACTIVO');
@@ -71,6 +84,62 @@ export default function ParcelsAndGeorefModule({
   const visibleParcels = parcels.filter((item) =>
     municipalityFilter === 'TODAS' ? true : item.municipality === municipalityFilter
   );
+
+  const handleSelectAndPreloadParcel = async (parcelItem: ParcelAdminOverview) => {
+    if (preloadingParcelId) {
+      return;
+    }
+
+    setPreloadingParcelId(parcelItem.parcelId);
+    setPreloadDoneCount(0);
+    setPreloadTotalCount(7);
+
+    const coords =
+      Array.isArray(parcelItem.coordinates) && parcelItem.coordinates.length >= 3
+        ? parcelItem.coordinates
+        : [
+            [-93.2845, 18.256],
+            [-93.281, 18.256],
+            [-93.281, 18.2525],
+            [-93.2845, 18.2525],
+            [-93.2845, 18.256],
+          ];
+
+    let snaps: HistoricalParcelSnapshot[] = [];
+    const hasRealSnaps =
+      Array.isArray(parcelItem.historicalSnapshots) &&
+      parcelItem.historicalSnapshots.length === 7 &&
+      parcelItem.historicalSnapshots.every((item) => item.capture_source === 'real_src_date');
+
+    if (hasRealSnaps && parcelItem.historicalSnapshots) {
+      snaps = parcelItem.historicalSnapshots;
+    } else {
+      try {
+        const res = await fetchParcelHistoricalSnapshotsLive(parcelItem.parcelId);
+        if (Array.isArray(res.snapshots) && res.snapshots.length === 7) {
+          snaps = res.snapshots;
+          if (onUpdateParcelSnapshots) {
+            onUpdateParcelSnapshots(parcelItem.parcelId, snaps);
+          }
+        }
+      } catch {
+        snaps = buildHistoricalSnapshotsFallback(parcelItem.parcelId, coords);
+      }
+    }
+
+    if (snaps.length === 0) {
+      snaps = buildHistoricalSnapshotsFallback(parcelItem.parcelId, coords);
+    }
+
+    setPreloadTotalCount(snaps.length);
+    await preloadParcelHistoricalTiles(coords, snaps, (done, total) => {
+      setPreloadDoneCount(done);
+      setPreloadTotalCount(total);
+    });
+
+    setPreloadingParcelId(null);
+    onSelectParcel(parcelItem.parcelId);
+  };
 
   const handleUseBrowserGps = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -786,6 +855,10 @@ export default function ParcelsAndGeorefModule({
       >
         {visibleParcels.map((p) => {
           const friendly = getProducerFriendlyParcelStatus(p);
+          const isLoadingThisParcel = preloadingParcelId === p.parcelId;
+          const progressPct = Math.round(
+            (preloadDoneCount / Math.max(preloadTotalCount, 1)) * 100
+          );
           const toneColors =
             friendly.forestStatusTone === 'verde'
               ? { bg: T.colors.statusGreenBg, fg: T.colors.statusGreen, border: '#15803D' }
@@ -797,16 +870,23 @@ export default function ParcelsAndGeorefModule({
             <button
               key={p.parcelId}
               type="button"
-              onClick={() => onSelectParcel(p.parcelId)}
+              disabled={Boolean(preloadingParcelId)}
+              aria-busy={isLoadingThisParcel}
+              onClick={() => void handleSelectAndPreloadParcel(p)}
               style={{
                 textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: T.colors.surfaceElevated,
-                border: `1.5px solid ${T.colors.borderSubtle}`,
+                cursor: preloadingParcelId ? 'wait' : 'pointer',
+                backgroundColor: isLoadingThisParcel
+                  ? T.colors.softGreenBg
+                  : T.colors.surfaceElevated,
+                border: `2px solid ${
+                  isLoadingThisParcel ? T.colors.primaryGreen : T.colors.borderSubtle
+                }`,
                 borderRadius: 12,
                 padding: 16,
                 display: 'grid',
                 gap: 10,
+                opacity: preloadingParcelId && !isLoadingThisParcel ? 0.65 : 1,
               }}
             >
               <div
@@ -865,9 +945,47 @@ export default function ParcelsAndGeorefModule({
                 </div>
               </div>
 
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.primaryGreen }}>
-                Abrir página de esta parcela →
-              </span>
+              {isLoadingThisParcel ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: `1.5px solid ${T.colors.primaryGreen}`,
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ fontSize: '0.82rem', fontWeight: 800, color: T.colors.primaryGreen }}>
+                    🛰️ Descargando fotografías satelitales ({preloadDoneCount} /{' '}
+                    {preloadTotalCount})...
+                  </div>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: 8,
+                      backgroundColor: T.colors.backgroundSecondary,
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(10, progressPct)}%`,
+                        height: '100%',
+                        backgroundColor: T.colors.primaryGreen,
+                        transition: 'width 150ms ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.primaryGreen }}>
+                  Abrir página de esta parcela →
+                </span>
+              )}
             </button>
           );
         })}

@@ -115,7 +115,9 @@ describe('Portal centrado en el productor — Lenguaje accesible, bitácora y ge
   });
 
   it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 años atrás', async () => {
-    const { buildHistoricalSnapshotsFallback } = await import('@/services/geoEngineLiveClient');
+    const { buildHistoricalSnapshotsFallback, computeWaybackTileLayout } = await import(
+      '@/services/geoEngineLiveClient'
+    );
     const { estimatePolygonHectares } = await import('@/services/producerLogbookService');
 
     const coords = [
@@ -137,7 +139,11 @@ describe('Portal centrado en el productor — Lenguaje accesible, bitácora y ge
       'hace_5_anios',
     ]);
     const releases = snapshots.map((s) => s.wayback_release);
+    const dates = snapshots.map((s) => s.captured_date_iso);
     expect(new Set(releases).size).toBe(7);
+    expect(new Set(dates).size).toBe(7);
+    expect(snapshots.every((s) => s.capture_source === 'real_src_date')).toBe(true);
+    expect(computeWaybackTileLayout(coords, '43291').length).toBeGreaterThan(0);
 
     const tinyPolygon = [
       [-93.2845, 18.256],
