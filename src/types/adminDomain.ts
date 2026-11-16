@@ -1,4 +1,40 @@
-export type WebUserRole = 'acopiador' | 'auditor_sustentabilidad' | 'admin_astra';
+export type WebUserRole =
+  | 'acopiador'
+  | 'auditor_sustentabilidad'
+  | 'admin_astra'
+  | 'tecnico_campo'
+  | 'productor'
+  | (string & {});
+
+export interface RolePermissionSet {
+  can_view_parcels: boolean;
+  can_create_parcels: boolean;
+  can_edit_logbook: boolean;
+  can_register_harvest: boolean;
+  can_view_carbon: boolean;
+  can_edit_regdate: boolean;
+  can_manage_roles: boolean;
+}
+
+export interface EditableRoleDefinition {
+  role_key: string;
+  display_name: string;
+  description: string;
+  is_system: boolean;
+  permissions: RolePermissionSet;
+  updated_at_iso?: string;
+  updated_by?: string;
+}
+
+export interface AdminManagedProfile {
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  role_display_name: string;
+  cooperative_name: string;
+  updated_at_iso?: string;
+}
 
 export const WEB_DOMAIN_CONSTANTS = {
   EUDR_MANDATORY_POLYGON_THRESHOLD_HA: 4.0,

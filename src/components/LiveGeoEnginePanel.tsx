@@ -7,13 +7,16 @@ import {
   computeWaybackTileLayout,
   fetchParcelHistoricalSnapshotsLive,
   requestTracesNtExportLive,
+  updateParcelRegistrationDateAdminLive,
 } from '@/services/geoEngineLiveClient';
 import {
+  canAdminEditRegistrationDate,
   formatDisplayDateEs,
   formatSnapshotLabelEs,
   getNextTimelapsePeriodKey,
   getOrderedTimelapsePeriodKeys,
   getProducerFriendlyParcelStatus,
+  isAmazonRegistrationConfirmValid,
   latLngToScreenPoint,
   TimelapseDirection,
 } from '@/services/producerLogbookService';
@@ -58,7 +61,15 @@ function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boo
   );
 }
 
-export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOverview }) {
+export default function LiveGeoEnginePanel({
+  parcel,
+  operatorProfile,
+  onParcelUpdated,
+}: {
+  parcel: ParcelAdminOverview;
+  operatorProfile?: { fullName: string; role: string; accessToken?: string } | null;
+  onParcelUpdated?: (updated: ParcelAdminOverview) => void;
+}) {
   const activeCoordinates =
     Array.isArray(parcel.coordinates) && parcel.coordinates.length >= 3
       ? parcel.coordinates
@@ -67,8 +78,14 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
   const coordKey = JSON.stringify(activeCoordinates);
   const defaultRegDate =
     parcel.registeredAtIso?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const isAdminUser = canAdminEditRegistrationDate(operatorProfile?.role);
 
   const [referenceDate, setReferenceDate] = useState<string>(defaultRegDate);
+  const [isRegDateModalOpen, setIsRegDateModalOpen] = useState<boolean>(false);
+  const [pendingRegDate, setPendingRegDate] = useState<string>(defaultRegDate);
+  const [confirmWordInput, setConfirmWordInput] = useState<string>('');
+  const [regDateError, setRegDateError] = useState<string | null>(null);
+  const [regDateSuccessMsg, setRegDateSuccessMsg] = useState<string | null>(null);
   const [snapshots, setSnapshots] = useState<HistoricalParcelSnapshot[]>(() =>
     hasDistinctRealCaptures(parcel.historicalSnapshots)
       ? parcel.historicalSnapshots!
@@ -92,6 +109,11 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     setSelectedPeriodKey('registro_actual');
     setIsAutoPlaying(false);
     setReferenceDate(defaultRegDate);
+    setPendingRegDate(defaultRegDate);
+    setIsRegDateModalOpen(false);
+    setConfirmWordInput('');
+    setRegDateError(null);
+    setRegDateSuccessMsg(null);
 
     if (hasDistinctRealCaptures(parcel.historicalSnapshots) && parcel.historicalSnapshots) {
       setSnapshots(parcel.historicalSnapshots);
@@ -137,21 +159,54 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     return () => window.clearInterval(timer);
   }, [isAutoPlaying, autoPlaySeconds, orderedPeriods]);
 
-  const handleChangeReferenceDate = async (nextDate: string) => {
-    setReferenceDate(nextDate);
-    setIsAutoPlaying(false);
-    if (!nextDate) {
+  const handleConfirmAdminRegistrationDate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setRegDateError(null);
+    setRegDateSuccessMsg(null);
+
+    if (!isAdminUser) {
+      setRegDateError('Solo el Administrador puede modificar la fecha de registro de la parcela.');
       return;
     }
+    if (!pendingRegDate) {
+      setRegDateError('Selecciona una nueva fecha de registro válida.');
+      return;
+    }
+    if (!isAmazonRegistrationConfirmValid(confirmWordInput)) {
+      setRegDateError('Debes escribir exactamente la palabra "confirmar" para autorizar.');
+      return;
+    }
+
+    setIsAutoPlaying(false);
     setUpdatingDate(true);
     try {
-      const res = await fetchParcelHistoricalSnapshotsLive(parcel.parcelId, nextDate);
-      if (Array.isArray(res.snapshots) && res.snapshots.length === 7) {
-        setSnapshots(res.snapshots);
+      const updated = await updateParcelRegistrationDateAdminLive({
+        parcelId: parcel.parcelId,
+        newDateIso: pendingRegDate,
+        confirmationWord: confirmWordInput.trim(),
+        changedBy: operatorProfile?.fullName || 'Administrador ASTRA',
+        changedByRole: operatorProfile?.role || '',
+        accessToken: operatorProfile?.accessToken,
+      });
+      const updatedDate = updated.registeredAtIso?.slice(0, 10) || pendingRegDate;
+      setReferenceDate(updatedDate);
+      if (Array.isArray(updated.historicalSnapshots) && updated.historicalSnapshots.length > 0) {
+        setSnapshots(updated.historicalSnapshots);
         setSelectedPeriodKey('registro_actual');
+        setPersistedOnServer(true);
       }
-    } catch {
-      // Mantiene las tomas actuales si el servidor remoto no está disponible.
+      if (onParcelUpdated) {
+        onParcelUpdated(updated);
+      }
+      setIsRegDateModalOpen(false);
+      setConfirmWordInput('');
+      setRegDateSuccessMsg(
+        `Fecha de registro actualizada a ${formatDisplayDateEs(updatedDate)} y registrada en la bitácora de auditoría.`,
+      );
+    } catch (err) {
+      setRegDateError(
+        err instanceof Error ? err.message : 'No se pudo actualizar la fecha de registro.',
+      );
     } finally {
       setUpdatingDate(false);
     }
@@ -169,6 +224,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     () => computeCenteredWaybackViewport(JSON.parse(coordKey) as number[][], VIEW_W, VIEW_H),
     [coordKey],
   );
+  const activeRenderZoom = activeSnapshot?.render_zoom ?? zoom;
 
   const waybackTiles = useMemo(
     () =>
@@ -184,7 +240,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
   );
 
   const polygonPoints = activeCoordinates.map(([lng, lat]) =>
-    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom),
+    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, activeRenderZoom),
   );
   const polygonSvgStr = polygonPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');
 
@@ -264,22 +320,39 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label
-              htmlFor="history-reference-date"
-              style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
-            >
-              Fecha de registro ({formatDisplayDateEs(referenceDate)}):
-            </label>
-            <input
-              id="history-reference-date"
-              type="date"
-              value={referenceDate}
-              disabled={updatingDate}
-              onChange={(e) => void handleChangeReferenceDate(e.target.value)}
-              className="field-input"
-              style={{ width: 'auto', marginTop: 0, padding: '4px 8px', fontSize: '0.8rem' }}
-            />
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '5px 10px',
+              borderRadius: 8,
+              backgroundColor: T.colors.backgroundPrimary,
+              border: `1px solid ${T.colors.borderSubtle}`,
+              fontSize: '0.8rem',
+            }}
+          >
+            <span style={{ fontWeight: 700, color: T.colors.textSecondary }}>
+              Fecha de registro:{' '}
+              <strong style={{ color: T.colors.textPrimary }}>
+                {formatDisplayDateEs(referenceDate)}
+              </strong>
+            </span>
+            {isAdminUser ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingRegDate(referenceDate);
+                  setConfirmWordInput('');
+                  setRegDateError(null);
+                  setIsRegDateModalOpen((prev) => !prev);
+                }}
+                className="btn-control"
+                style={{ padding: '3px 8px', fontSize: '0.74rem', fontWeight: 700 }}
+              >
+                {isRegDateModalOpen ? 'Cerrar' : 'Modificar fecha (Admin)'}
+              </button>
+            ) : null}
           </div>
 
           <span
@@ -294,13 +367,147 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             {updatingDate
-              ? 'Buscando fechas despejadas...'
+              ? 'Recalculando capturas de alta resolución...'
               : persistedOnServer
                 ? '✓ Guardado en servidor sin nubes'
                 : 'Vista centrada de la parcela'}
           </span>
         </div>
       </div>
+
+      {regDateSuccessMsg ? (
+        <div
+          role="status"
+          style={{
+            padding: '10px 14px',
+            borderRadius: 8,
+            backgroundColor: T.colors.statusGreenBg,
+            border: '1.5px solid #15803D',
+            color: T.colors.statusGreen,
+            fontSize: '0.84rem',
+            fontWeight: 700,
+          }}
+        >
+          {regDateSuccessMsg}
+        </div>
+      ) : null}
+
+      {isRegDateModalOpen && isAdminUser ? (
+        <form
+          onSubmit={(e) => void handleConfirmAdminRegistrationDate(e)}
+          aria-label="Confirmación crítica para cambiar fecha de registro"
+          style={{
+            backgroundColor: '#FFF7ED',
+            border: '2px solid #C2410C',
+            borderRadius: 12,
+            padding: 16,
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div>
+            <strong style={{ color: '#9A3412', fontSize: '0.96rem' }}>
+              Confirmación crítica de Administrador · Cambio de fecha de registro
+            </strong>
+            <p style={{ margin: '6px 0 0', fontSize: '0.84rem', color: '#7C2D12' }}>
+              Advertencia: Cambiar este valor altera los registros históricos de esta parcela y
+              recalcula sus fotografías satelitales de alta resolución. Todo cambio quedará
+              registrado permanentemente con tu usuario, rol y fecha en la bitácora de auditoría.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 12,
+              alignItems: 'end',
+            }}
+          >
+            <div>
+              <label
+                htmlFor="admin-regdate-input"
+                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#7C2D12' }}
+              >
+                Nueva fecha de registro ({formatDisplayDateEs(pendingRegDate)})
+              </label>
+              <input
+                id="admin-regdate-input"
+                type="date"
+                value={pendingRegDate}
+                disabled={updatingDate}
+                onChange={(e) => setPendingRegDate(e.target.value)}
+                className="field-input"
+                required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="admin-regdate-confirm-word"
+                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#7C2D12' }}
+              >
+                Escribe <code>confirmar</code> para autorizar el cambio
+              </label>
+              <input
+                id="admin-regdate-confirm-word"
+                type="text"
+                value={confirmWordInput}
+                disabled={updatingDate}
+                placeholder="confirmar"
+                onChange={(e) => setConfirmWordInput(e.target.value)}
+                className="field-input"
+                autoComplete="off"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegDateModalOpen(false);
+                  setConfirmWordInput('');
+                  setRegDateError(null);
+                }}
+                className="btn-control"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  updatingDate ||
+                  !pendingRegDate ||
+                  !isAmazonRegistrationConfirmValid(confirmWordInput)
+                }
+                style={{
+                  backgroundColor: isAmazonRegistrationConfirmValid(confirmWordInput)
+                    ? '#B91C1C'
+                    : '#FCA5A5',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '9px 14px',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: isAmazonRegistrationConfirmValid(confirmWordInput)
+                    ? 'pointer'
+                    : 'not-allowed',
+                }}
+              >
+                {updatingDate ? 'Aplicando cambio...' : 'Confirmar y registrar cambio'}
+              </button>
+            </div>
+          </div>
+
+          {regDateError ? (
+            <div role="alert" style={{ fontSize: '0.82rem', fontWeight: 700, color: '#991B1B' }}>
+              {regDateError}
+            </div>
+          ) : null}
+        </form>
+      ) : null}
 
       {/* Única barra de selección de fechas + controles de Timelapse automático y opacidad */}
       <div
@@ -446,8 +653,13 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               </strong>
               <div style={{ fontSize: '0.8rem', color: T.colors.textSecondary }}>
                 Fecha exacta en que el satélite tomó esta fotografía:{' '}
-                <strong>{formatDisplayDateEs(activeSnapshot.captured_date_iso)}</strong> · Cielo
-                despejado verificado
+                <strong>{formatDisplayDateEs(activeSnapshot.captured_date_iso)}</strong> ·{' '}
+                {activeSnapshot.cloud_fallback_least_cloudy
+                  ? 'Menor nubosidad disponible (20 intentos)'
+                  : 'Cielo despejado verificado'}
+                {activeSnapshot.resolution_label
+                  ? ` · ${activeSnapshot.resolution_label}`
+                  : ' · Alta resolución verificada'}
                 {activeSnapshot.cached_image_url ? ' · Almacenada en servidor CDN' : ''}
               </div>
             </div>
@@ -544,6 +756,36 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 />
               ))}
             </svg>
+          </div>
+        </div>
+      ) : null}
+
+      {(parcel.registrationAuditLog?.length ?? 0) > 0 ? (
+        <div
+          style={{
+            backgroundColor: T.colors.backgroundPrimary,
+            borderRadius: 10,
+            padding: '12px 14px',
+            border: `1px solid ${T.colors.borderSubtle}`,
+            display: 'grid',
+            gap: 6,
+          }}
+        >
+          <strong style={{ fontSize: '0.82rem', color: T.colors.primaryGreen }}>
+            Bitácora de cambios en fecha de registro ({parcel.registrationAuditLog?.length})
+          </strong>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {parcel.registrationAuditLog?.map((entry, idx) => (
+              <div
+                key={`${entry.changed_at_iso}-${idx}`}
+                style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}
+              >
+                {formatDisplayDateEs(entry.changed_at_iso)} · De{' '}
+                <strong>{formatDisplayDateEs(entry.previous_date_iso)}</strong> a{' '}
+                <strong>{formatDisplayDateEs(entry.new_date_iso)}</strong> · Por{' '}
+                <strong>{entry.changed_by}</strong> ({entry.changed_by_role})
+              </div>
+            ))}
           </div>
         </div>
       ) : null}

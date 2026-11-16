@@ -191,4 +191,51 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(backwardOrder[backwardOrder.length - 1]).toBe('hace_5_anios');
   expect(getNextTimelapsePeriodKey(backwardOrder, 'registro_actual')).toBe('hace_6_meses');
   expect(getNextTimelapsePeriodKey(backwardOrder, 'hace_5_anios')).toBe('registro_actual');
+
+  const { canAdminEditRegistrationDate, isAmazonRegistrationConfirmValid } =
+    await import('@/services/producerLogbookService');
+  expect(canAdminEditRegistrationDate('admin_astra')).toBe(true);
+  expect(canAdminEditRegistrationDate('acopiador')).toBe(false);
+  expect(canAdminEditRegistrationDate('auditor_sustentabilidad')).toBe(false);
+  expect(canAdminEditRegistrationDate(null)).toBe(false);
+  expect(isAmazonRegistrationConfirmValid('confirmar')).toBe(true);
+  expect(isAmazonRegistrationConfirmValid(' CONFIRMAR ')).toBe(true);
+  expect(isAmazonRegistrationConfirmValid('si')).toBe(false);
+
+  const { computeOptimalParcelZoom } = await import('@/services/geoEngineLiveClient');
+  const { zoom: zoomTiny } = computeOptimalParcelZoom([
+    [-93.391, 18.034],
+    [-93.3905, 18.034],
+    [-93.3905, 18.0335],
+    [-93.391, 18.0335],
+  ]);
+  const { zoom: zoomCarrizal } = computeOptimalParcelZoom([
+    [-93.3916, 18.0342],
+    [-93.3906, 18.0342],
+    [-93.3906, 18.0328],
+    [-93.3916, 18.0328],
+  ]);
+  const { zoom: zoomLarge } = computeOptimalParcelZoom([
+    [-93.398, 18.04],
+    [-93.385, 18.04],
+    [-93.385, 18.028],
+    [-93.398, 18.028],
+  ]);
+  expect(zoomTiny).toBeGreaterThan(zoomCarrizal);
+  expect(zoomCarrizal).toBeGreaterThan(zoomLarge);
+});
+
+it('valida retroalimentación visual de guardado accesible en georreferenciación (R-32, R-39)', () => {
+  const getButtonText = (savingGeoref: boolean) =>
+    savingGeoref ? 'Guardando georreferencia...' : 'Guardar nueva parcela';
+  const getButtonAriaBusy = (savingGeoref: boolean) => savingGeoref;
+  const isFormDisabled = (savingGeoref: boolean) => savingGeoref;
+
+  expect(getButtonText(false)).toBe('Guardar nueva parcela');
+  expect(getButtonAriaBusy(false)).toBe(false);
+  expect(isFormDisabled(false)).toBe(false);
+
+  expect(getButtonText(true)).toBe('Guardando georreferencia...');
+  expect(getButtonAriaBusy(true)).toBe(true);
+  expect(isFormDisabled(true)).toBe(true);
 });

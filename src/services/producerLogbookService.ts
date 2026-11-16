@@ -3,7 +3,8 @@ import {
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
 
-export type ProducerNavSection = 'inicio' | 'parcelas' | 'bitacora' | 'cosecha' | 'carbono';
+export type ProducerNavSection =
+  'inicio' | 'parcelas' | 'bitacora' | 'cosecha' | 'carbono' | 'admin_panel';
 
 export type FieldActivityType =
   | 'FERTILIZACION'
@@ -412,4 +413,12 @@ export function getNextTimelapsePeriodKey(
   const idx = orderedPeriodKeys.indexOf(currentPeriodKey);
   const nextIdx = idx === -1 ? 0 : (idx + 1) % orderedPeriodKeys.length;
   return orderedPeriodKeys[nextIdx];
+}
+
+export function canAdminEditRegistrationDate(role?: string | null): boolean {
+  return (role || '').trim().toLowerCase() === 'admin_astra';
+}
+
+export function isAmazonRegistrationConfirmValid(confirmationInput: string): boolean {
+  return confirmationInput.trim().toLowerCase() === 'confirmar';
 }

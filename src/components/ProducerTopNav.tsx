@@ -17,7 +17,7 @@ interface ProducerTopNavProps {
   onSignOut: () => Promise<void>;
 }
 
-const NAV_ITEMS: Array<{ id: ProducerNavSection; label: string; icon: string }> = [
+const BASE_NAV_ITEMS: Array<{ id: ProducerNavSection; label: string; icon: string }> = [
   { id: 'inicio', label: 'Inicio', icon: '🏡' },
   { id: 'parcelas', label: 'Parcelas y Georreferencia', icon: '🗺️' },
   { id: 'bitacora', label: 'Bitácora', icon: '📓' },
@@ -35,6 +35,11 @@ export default function ProducerTopNav({
   storageEngine,
   onSignOut,
 }: ProducerTopNavProps) {
+  const navItems =
+    operatorProfile.role === 'admin_astra'
+      ? [...BASE_NAV_ITEMS, { id: 'admin_panel' as const, label: 'Control Admin', icon: '🛡️' }]
+      : BASE_NAV_ITEMS;
+
   return (
     <header
       style={{
@@ -67,7 +72,36 @@ export default function ProducerTopNav({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
-            <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>🌿 Kanan Cacao</span>
+            <span
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 6,
+                width: 28,
+                height: 28,
+                padding: 2,
+                boxSizing: 'border-box',
+                aspectRatio: '1 / 1',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src="/brand/kanan-cacao-icon.svg?v=2"
+                alt="Icono Kanan Cacao"
+                width={24}
+                height={24}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  aspectRatio: '1 / 1',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+            </span>
+            <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>Kanan Cacao</span>
             <span style={{ opacity: 0.75 }}>·</span>
             <span>Tabasco, México</span>
             <span
@@ -140,7 +174,7 @@ export default function ProducerTopNav({
             flexShrink: 0,
           }}
         >
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive = activeSection === item.id;
             return (
               <button

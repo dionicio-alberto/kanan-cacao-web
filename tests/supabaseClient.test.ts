@@ -42,14 +42,18 @@ describe('resolveRoleFromEmailOrProfile y helpers de Supabase Auth', () => {
     expect(resolveRoleFromEmailOrProfile('admin@cacao-astra.org', 'acopiador')).toBe('acopiador');
   });
 
-  it('mapea los correos semilla cuando profileRole no es rol web directo', async () => {
+  it('preserva los roles reales de Supabase y mapea correos semilla cuando profileRole falta', async () => {
     const { resolveRoleFromEmailOrProfile } = await import('@/services/supabaseClient');
     expect(resolveRoleFromEmailOrProfile('admin@cacao-astra.org', null)).toBe('admin_astra');
     expect(resolveRoleFromEmailOrProfile('auditor.eudr@cacao-astra.org', undefined)).toBe(
       'auditor_sustentabilidad',
     );
-    expect(resolveRoleFromEmailOrProfile('acopio.chontalpa@cacao-astra.org', 'tecnico_campo')).toBe(
-      'acopiador',
+    expect(resolveRoleFromEmailOrProfile('tecnico.campo@cacao-astra.org', 'tecnico_campo')).toBe(
+      'tecnico_campo',
+    );
+    expect(resolveRoleFromEmailOrProfile('mateo@cacao-astra.org', 'productor')).toBe('productor');
+    expect(resolveRoleFromEmailOrProfile('alguien@cacao-astra.org', 'inspector_campo')).toBe(
+      'inspector_campo',
     );
   });
 

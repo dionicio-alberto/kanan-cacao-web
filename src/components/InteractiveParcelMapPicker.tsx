@@ -11,7 +11,7 @@ import {
 } from '@/services/producerLogbookService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
-export type InteractiveMapLayer = 'satellite' | 'traffic' | 'copernicus';
+export type InteractiveMapLayer = 'satellite' | 'traffic';
 
 interface InteractiveParcelMapPickerProps {
   initialCenterLat?: number;
@@ -87,12 +87,10 @@ export default function InteractiveParcelMapPicker({
         const baseUrl =
           mapLayer === 'satellite'
             ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
-            : mapLayer === 'copernicus'
-              ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/${zoom}/${ty}/${tx}.jpg`
-              : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
+            : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
 
         const overlayUrl =
-          mapLayer === 'satellite' || mapLayer === 'copernicus'
+          mapLayer === 'satellite'
             ? `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/${zoom}/${ty}/${tx}`
             : undefined;
 
@@ -297,23 +295,7 @@ export default function InteractiveParcelMapPicker({
               borderColor: mapLayer === 'traffic' ? T.colors.earthCacao : T.colors.borderControl,
             }}
           >
-            🛣️ Calles y Caminos (Open Source)
-          </button>
-
-          <button
-            type="button"
-            className="btn-control"
-            aria-pressed={mapLayer === 'copernicus'}
-            onClick={() => setMapLayer('copernicus')}
-            style={{
-              padding: '6px 11px',
-              fontSize: '0.8rem',
-              backgroundColor: mapLayer === 'copernicus' ? '#1D4ED8' : T.colors.surfaceCard,
-              color: mapLayer === 'copernicus' ? '#FFFFFF' : T.colors.textPrimary,
-              borderColor: mapLayer === 'copernicus' ? '#1D4ED8' : T.colors.borderControl,
-            }}
-          >
-            🇪🇺 Copernicus UE (Sin nubes)
+            🛣️ Mapa de Calles y Caminos
           </button>
 
           <button
