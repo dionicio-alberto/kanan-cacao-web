@@ -30,7 +30,6 @@ describe('Bolt 3 — Cliente en vivo del Geo-Engine y proyección SVG', () => {
   });
 });
 
-
 describe('Satélite Esri World Imagery y proyección ortogonal', () => {
   it('ajusta el bbox al aspect ratio 1.75 igual que ArcGIS World_Imagery', async () => {
     const {

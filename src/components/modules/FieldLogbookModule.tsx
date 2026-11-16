@@ -91,7 +91,7 @@ export default function FieldLogbookModule({
       setNotes('');
       setPhotos([]);
       setSuccessMsg(
-        `Actividad guardada en la bitácora de ${selectedParcel.parcelName || selectedParcel.producerName}.`
+        `Actividad guardada en la bitácora de ${selectedParcel.parcelName || selectedParcel.producerName}.`,
       );
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));

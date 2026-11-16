@@ -26,7 +26,7 @@ export function isSupabaseConfigured(): boolean {
 
 export function resolveRoleFromEmailOrProfile(
   email?: string | null,
-  profileRole?: string | null
+  profileRole?: string | null,
 ): WebUserRole {
   const normalizedRole = (profileRole || '').trim().toLowerCase();
   if (normalizedRole === 'admin_astra') return 'admin_astra';
@@ -37,10 +37,7 @@ export function resolveRoleFromEmailOrProfile(
   if (normalizedEmail === 'admin@cacao-astra.org' || normalizedEmail.startsWith('admin@')) {
     return 'admin_astra';
   }
-  if (
-    normalizedEmail === 'auditor.eudr@cacao-astra.org' ||
-    normalizedEmail.includes('auditor')
-  ) {
+  if (normalizedEmail === 'auditor.eudr@cacao-astra.org' || normalizedEmail.includes('auditor')) {
     return 'auditor_sustentabilidad';
   }
   return 'acopiador';
@@ -71,7 +68,7 @@ async function hydrateOperatorProfile(
   client: SupabaseClient,
   userId: string,
   email: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<AuthenticatedOperatorProfile> {
   const { data } = await client
     .from('profiles')
@@ -93,7 +90,7 @@ async function hydrateOperatorProfile(
 
 export async function signInWithSupabasePassword(
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthenticatedOperatorProfile> {
   const client = getSupabaseClient();
   if (!client) {
@@ -118,7 +115,7 @@ export async function signInWithSupabasePassword(
     client,
     data.user.id,
     data.user.email || cleanEmail,
-    data.session.access_token
+    data.session.access_token,
   );
 }
 
@@ -136,7 +133,7 @@ export async function getActiveSupabaseSession(): Promise<AuthenticatedOperatorP
   // Verifica contra el servidor de Auth que el token no haya sido revocado ni expirado.
   if (typeof client.auth.getUser === 'function') {
     const { data: userCheck, error: userError } = await client.auth.getUser(
-      data.session.access_token
+      data.session.access_token,
     );
     if (userError || !userCheck?.user) {
       return null;
@@ -147,7 +144,7 @@ export async function getActiveSupabaseSession(): Promise<AuthenticatedOperatorP
     client,
     data.session.user.id,
     data.session.user.email || '',
-    data.session.access_token
+    data.session.access_token,
   );
 }
 

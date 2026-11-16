@@ -20,9 +20,9 @@ interface ProducerTopNavProps {
 const NAV_ITEMS: Array<{ id: ProducerNavSection; label: string; icon: string }> = [
   { id: 'inicio', label: 'Inicio', icon: '🏡' },
   { id: 'parcelas', label: 'Parcelas y Georreferencia', icon: '🗺️' },
-  { id: 'bitacora', label: 'Bitácora de Parcela', icon: '📓' },
-  { id: 'cosecha', label: 'Cosecha y Mesa de Acopio', icon: '⚖️' },
-  { id: 'carbono', label: 'Bonos de Carbono', icon: '🌳' },
+  { id: 'bitacora', label: 'Bitácora', icon: '📓' },
+  { id: 'cosecha', label: 'Cosecha y Acopio', icon: '⚖️' },
+  { id: 'carbono', label: 'Carbono', icon: '🌳' },
 ];
 
 export default function ProducerTopNav({
@@ -39,60 +39,59 @@ export default function ProducerTopNav({
     <header
       style={{
         backgroundColor: T.colors.surfaceCard,
-        borderBottom: `2px solid ${T.colors.borderSubtle}`,
+        borderBottom: `1.5px solid ${T.colors.borderSubtle}`,
         position: 'sticky',
         top: 0,
         zIndex: 20,
       }}
     >
-      {/* Franja institucional mínima de cuenta */}
+      {/* Franja superior compacta de marca y sesión */}
       <div
         style={{
           backgroundColor: T.colors.primaryGreen,
           color: '#FFFFFF',
-          padding: '7px 20px',
-          fontSize: '0.8rem',
+          padding: '4px 16px',
+          fontSize: '0.74rem',
         }}
       >
         <div
           style={{
-            maxWidth: 1280,
+            maxWidth: 1360,
             margin: '0 auto',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 10,
+            gap: 8,
+            flexWrap: 'nowrap',
+            overflowX: 'auto',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 800, fontSize: '1rem' }}>🌿 Kanan Cacao</span>
-            <span style={{ opacity: 0.8 }}>·</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>🌿 Kanan Cacao</span>
+            <span style={{ opacity: 0.75 }}>·</span>
             <span>Tabasco, México</span>
             <span
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.16)',
-                padding: '2px 8px',
-                borderRadius: 6,
-                fontSize: '0.72rem',
+                padding: '1px 7px',
+                borderRadius: 5,
+                fontSize: '0.68rem',
                 fontWeight: 700,
               }}
             >
-              {storageEngine === 'supabase_postgis'
-                ? 'En línea con servidor'
-                : 'Respaldo local activo'}
+              {storageEngine === 'supabase_postgis' ? 'En línea' : 'Respaldo local'}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
             <span
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                padding: '2px 10px',
-                borderRadius: 6,
+                border: '1px solid rgba(255, 255, 255, 0.28)',
+                padding: '1px 8px',
+                borderRadius: 5,
                 fontWeight: 600,
-                fontSize: '0.76rem',
+                fontSize: '0.72rem',
               }}
             >
               {operatorProfile.fullName}
@@ -104,10 +103,10 @@ export default function ProducerTopNav({
                 backgroundColor: '#FFFFFF',
                 color: T.colors.earthCacao,
                 border: 'none',
-                borderRadius: 6,
-                padding: '5px 11px',
+                borderRadius: 5,
+                padding: '3px 9px',
                 fontWeight: 700,
-                fontSize: '0.76rem',
+                fontSize: '0.72rem',
                 cursor: 'pointer',
               }}
             >
@@ -117,22 +116,29 @@ export default function ProducerTopNav({
         </div>
       </div>
 
-      {/* Única barra de navegación con pestañas a la izquierda y filtro opcional de parcela diferenciado a la derecha */}
+      {/* Única barra horizontal en una sola línea: secciones + filtro de parcela */}
       <div
         style={{
-          maxWidth: 1280,
+          maxWidth: 1360,
           margin: '0 auto',
-          padding: '10px 20px',
+          padding: '6px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
+          flexWrap: 'nowrap',
+          gap: 10,
+          overflowX: 'auto',
         }}
       >
         <nav
           aria-label="Secciones principales del portal"
-          style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}
+          style={{
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'nowrap',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
         >
           {NAV_ITEMS.map((item) => {
             const isActive = activeSection === item.id;
@@ -144,16 +150,18 @@ export default function ProducerTopNav({
                 onClick={() => onSelectSection(item.id)}
                 style={{
                   border: `1.5px solid ${isActive ? T.colors.primaryGreen : 'transparent'}`,
-                  borderRadius: 8,
+                  borderRadius: 7,
                   backgroundColor: isActive ? T.colors.primaryGreen : T.colors.surfaceElevated,
                   color: isActive ? '#FFFFFF' : T.colors.textPrimary,
                   fontWeight: isActive ? 800 : 600,
-                  fontSize: '0.84rem',
-                  padding: '8px 13px',
+                  fontSize: '0.78rem',
+                  padding: '5px 10px',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 5,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 <span aria-hidden="true">{item.icon}</span>
@@ -163,30 +171,31 @@ export default function ProducerTopNav({
           })}
         </nav>
 
-        {/* Cápsula visualmente diferenciada para el filtro opcional de parcela */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 6,
             backgroundColor: T.colors.softCacaoBg,
-            border: `2px solid ${T.colors.earthCacao}`,
-            borderRadius: 10,
-            padding: '5px 10px',
+            border: `1.5px solid ${T.colors.earthCacao}`,
+            borderRadius: 8,
+            padding: '3px 8px',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
           }}
         >
           <label
             htmlFor="global-parcel-select"
             style={{
-              fontSize: '0.76rem',
+              fontSize: '0.72rem',
               fontWeight: 800,
               color: T.colors.earthCacao,
               textTransform: 'uppercase',
-              letterSpacing: '0.03em',
+              letterSpacing: '0.02em',
               whiteSpace: 'nowrap',
             }}
           >
-            📍 Filtro parcela:
+            📍 Parcela:
           </label>
           <select
             id="global-parcel-select"
@@ -195,16 +204,17 @@ export default function ProducerTopNav({
             className="field-input"
             style={{
               width: 'auto',
-              minWidth: 210,
+              minWidth: 165,
+              maxWidth: 230,
               marginTop: 0,
-              padding: '4px 10px',
-              fontSize: '0.82rem',
+              padding: '3px 7px',
               fontWeight: 700,
-              backgroundColor: '#FFFFFF',
+              fontSize: '0.78rem',
               borderColor: T.colors.earthCacao,
+              backgroundColor: '#FFFFFF',
             }}
           >
-            <option value="">Todas las parcelas (Ver menú)</option>
+            <option value="">Todas (Ver menú)</option>
             {parcels.map((p) => (
               <option key={p.parcelId} value={p.parcelId}>
                 {p.parcelName || p.producerName} ({p.municipality})

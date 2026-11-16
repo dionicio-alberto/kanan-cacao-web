@@ -80,7 +80,7 @@ export const FIELD_ACTIVITY_LABELS: Record<FieldActivityType, string> = {
 };
 
 export function getProducerFriendlyParcelStatus(
-  parcel: ParcelAdminOverview
+  parcel: ParcelAdminOverview,
 ): ProducerFriendlyParcelSummary {
   const compliance = evaluateCustfAdminCompliance(parcel);
 
@@ -101,7 +101,8 @@ export function getProducerFriendlyParcelStatus(
     canopyHealthHint = 'Conviene revisar riego, acolchado y sombra en temporada seca.';
   } else if (parcel.ndviAlertLevel === 'FOCO_PLAGA_FUNGICA_ALERTA') {
     canopyHealthLabel = 'Posible foco de mancha o plaga';
-    canopyHealthHint = 'Recomendable recorrer el lote para poda sanitaria y recolección de mazorca dañada.';
+    canopyHealthHint =
+      'Recomendable recorrer el lote para poda sanitaria y recolección de mazorca dañada.';
   }
 
   const papersAreClear = !compliance.isProducerBlocked;
@@ -123,16 +124,13 @@ export function getProducerFriendlyParcelStatus(
 export function buildClosedPolygonFromCenter(
   centerLat: number,
   centerLng: number,
-  areaHectares: number
+  areaHectares: number,
 ): number[][] {
   const safeHectares = Math.max(0.25, Math.min(200, Number(areaHectares) || 2.0));
   const areaSqMeters = safeHectares * 10000;
   const sideMeters = Math.sqrt(areaSqMeters);
   const metersPerDegLat = 111320;
-  const metersPerDegLng = Math.max(
-    40000,
-    111320 * Math.cos((centerLat * Math.PI) / 180)
-  );
+  const metersPerDegLng = Math.max(40000, 111320 * Math.cos((centerLat * Math.PI) / 180));
   const halfLat = sideMeters / 2 / metersPerDegLat;
   const halfLng = sideMeters / 2 / metersPerDegLng;
 
@@ -237,7 +235,7 @@ export const INITIAL_FIELD_LOGS: FieldLogEntry[] = [
         previewDataUrl:
           'data:image/svg+xml;utf8,' +
           encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200"><rect width="320" height="200" fill="#1E5E36"/><circle cx="160" cy="88" r="46" fill="#4ADE80" opacity="0.75"/><rect x="150" y="105" width="20" height="65" fill="#52321B"/><text x="160" y="185" font-family="sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">Abono aplicado en cacaotal</text></svg>'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200"><rect width="320" height="200" fill="#1E5E36"/><circle cx="160" cy="88" r="46" fill="#4ADE80" opacity="0.75"/><rect x="150" y="105" width="20" height="65" fill="#52321B"/><text x="160" y="185" font-family="sans-serif" font-size="13" fill="#FFFFFF" text-anchor="middle">Abono aplicado en cacaotal</text></svg>',
           ),
         capturedAtIso: '2026-10-18T09:40:00Z',
       },
@@ -281,7 +279,7 @@ const TILE_SIZE = 256;
 export function latLngToWorldPixel(
   lat: number,
   lng: number,
-  zoom: number
+  zoom: number,
 ): { x: number; y: number } {
   const scale = TILE_SIZE * Math.pow(2, zoom);
   const clampedLat = Math.max(-85.051128, Math.min(85.051128, lat));
@@ -294,7 +292,7 @@ export function latLngToWorldPixel(
 export function worldPixelToLatLng(
   worldX: number,
   worldY: number,
-  zoom: number
+  zoom: number,
 ): { lat: number; lng: number } {
   const scale = TILE_SIZE * Math.pow(2, zoom);
   const lng = (worldX / scale) * 360 - 180;
@@ -313,7 +311,7 @@ export function screenClickToLatLng(
   viewportH: number,
   centerLat: number,
   centerLng: number,
-  zoom: number
+  zoom: number,
 ): { lat: number; lng: number } {
   const centerWorld = latLngToWorldPixel(centerLat, centerLng, zoom);
   const worldX = centerWorld.x - viewportW / 2 + clickX;
@@ -328,7 +326,7 @@ export function latLngToScreenPoint(
   viewportH: number,
   centerLat: number,
   centerLng: number,
-  zoom: number
+  zoom: number,
 ): { x: number; y: number } {
   const centerWorld = latLngToWorldPixel(centerLat, centerLng, zoom);
   const targetWorld = latLngToWorldPixel(lat, lng, zoom);
@@ -348,8 +346,7 @@ export function estimatePolygonHectares(coordinates: number[][]): number {
       ? coordinates
       : [...coordinates, coordinates[0]];
 
-  const meanLatRad =
-    (ring.reduce((acc, pt) => acc + pt[1], 0) / ring.length) * (Math.PI / 180);
+  const meanLatRad = (ring.reduce((acc, pt) => acc + pt[1], 0) / ring.length) * (Math.PI / 180);
   const metersPerDegLat = 111132.92;
   const metersPerDegLng = Math.max(40000, 111412.84 * Math.cos(meanLatRad));
 

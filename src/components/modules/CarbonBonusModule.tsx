@@ -74,9 +74,7 @@ export default function CarbonBonusModule({ parcels }: CarbonBonusModuleProps) {
               backgroundColor: cluster.meetsMinimumVolume
                 ? T.colors.statusGreenBg
                 : T.colors.statusWarningBg,
-              color: cluster.meetsMinimumVolume
-                ? T.colors.statusGreen
-                : T.colors.statusWarning,
+              color: cluster.meetsMinimumVolume ? T.colors.statusGreen : T.colors.statusWarning,
               border: `1px solid ${cluster.meetsMinimumVolume ? '#15803D' : '#B45309'}`,
             }}
           >

@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import InteractiveParcelMapPicker from '@/components/InteractiveParcelMapPicker';
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import {
   buildHistoricalSnapshotsFallback,
+  fetchParcelDocumentsLive,
   fetchParcelHistoricalSnapshotsLive,
+  getParcelDocumentDownloadUrl,
   preloadParcelHistoricalTiles,
+  uploadParcelDocumentLive,
 } from '@/services/geoEngineLiveClient';
 import {
   buildClosedPolygonFromCenter,
@@ -16,6 +19,7 @@ import {
 import {
   HistoricalParcelSnapshot,
   ParcelAdminOverview,
+  ParcelLegalDocument,
 } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
@@ -32,6 +36,7 @@ interface ParcelsAndGeorefModuleProps {
   selectedParcel: ParcelAdminOverview | null;
   onSelectParcel: (parcelId: string | null) => void;
   onUpdateParcelSnapshots?: (parcelId: string, snapshots: HistoricalParcelSnapshot[]) => void;
+  onUpdateParcelDocuments?: (parcelId: string, documents: ParcelLegalDocument[]) => void;
   onToggleCustf: (parcelId: string) => void;
   onCreateGeorefParcel: (payload: CreateGeorefParcelPayload) => Promise<void>;
   savingGeoref: boolean;
@@ -53,6 +58,7 @@ export default function ParcelsAndGeorefModule({
   selectedParcel,
   onSelectParcel,
   onUpdateParcelSnapshots,
+  onUpdateParcelDocuments,
   onToggleCustf,
   onCreateGeorefParcel,
   savingGeoref,
@@ -64,6 +70,72 @@ export default function ParcelsAndGeorefModule({
   const [preloadingParcelId, setPreloadingParcelId] = useState<string | null>(null);
   const [preloadDoneCount, setPreloadDoneCount] = useState<number>(0);
   const [preloadTotalCount, setPreloadTotalCount] = useState<number>(7);
+  const [parcelDocs, setParcelDocs] = useState<ParcelLegalDocument[]>(
+    selectedParcel?.documents ?? [],
+  );
+  const [docTypeToUpload, setDocTypeToUpload] = useState<
+    'CERTIFICADO_PARCELARIO' | 'TITULO_PROPIEDAD' | 'CUSTF_SEMARNAT'
+  >('CERTIFICADO_PARCELARIO');
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<boolean>(false);
+  const [docStatusMsg, setDocStatusMsg] = useState<string | null>(null);
+  const [docErrorMsg, setDocErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDocStatusMsg(null);
+    setDocErrorMsg(null);
+    setSelectedDocFile(null);
+    if (!selectedParcel) {
+      setParcelDocs([]);
+      return;
+    }
+    setParcelDocs(selectedParcel.documents ?? []);
+    let active = true;
+    fetchParcelDocumentsLive(selectedParcel.parcelId)
+      .then((docs) => {
+        if (active) {
+          setParcelDocs(docs);
+        }
+      })
+      .catch(() => {
+        // Conserva documentos ya cargados si el servidor remoto no responde.
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedParcel?.parcelId, selectedParcel]);
+
+  const handleUploadDocumentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedParcel) {
+      return;
+    }
+    setDocStatusMsg(null);
+    setDocErrorMsg(null);
+    if (!selectedDocFile) {
+      setDocErrorMsg('Selecciona un archivo PDF o fotografía del documento antes de subir.');
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const created = await uploadParcelDocumentLive(
+        selectedParcel.parcelId,
+        docTypeToUpload,
+        selectedDocFile,
+      );
+      const nextDocs = [created, ...parcelDocs.filter((d) => d.id !== created.id)];
+      setParcelDocs(nextDocs);
+      setSelectedDocFile(null);
+      if (onUpdateParcelDocuments) {
+        onUpdateParcelDocuments(selectedParcel.parcelId, nextDocs);
+      }
+      setDocStatusMsg(`Documento "${created.file_name}" guardado en el expediente del servidor.`);
+    } catch (err) {
+      setDocErrorMsg(err instanceof Error ? err.message : 'No se pudo adjuntar el documento.');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
   const [captureMethod, setCaptureMethod] = useState<
     'MAPA_INTERACTIVO' | 'CENTRO_GPS' | 'ESQUINAS'
   >('MAPA_INTERACTIVO');
@@ -76,13 +148,13 @@ export default function ParcelsAndGeorefModule({
   const [centerLng, setCenterLng] = useState('-93.2615');
   const [mapCoordinates, setMapCoordinates] = useState<number[][]>([]);
   const [customCoordsText, setCustomCoordsText] = useState(
-    '-93.263, 18.250\n-93.259, 18.250\n-93.259, 18.247\n-93.263, 18.247'
+    '-93.263, 18.250\n-93.259, 18.250\n-93.259, 18.247\n-93.263, 18.247',
   );
   const [formError, setFormError] = useState<string | null>(null);
   const [gpsStatus, setGpsStatus] = useState<string | null>(null);
 
   const visibleParcels = parcels.filter((item) =>
-    municipalityFilter === 'TODAS' ? true : item.municipality === municipalityFilter
+    municipalityFilter === 'TODAS' ? true : item.municipality === municipalityFilter,
   );
 
   const handleSelectAndPreloadParcel = async (parcelItem: ParcelAdminOverview) => {
@@ -143,7 +215,9 @@ export default function ParcelsAndGeorefModule({
 
   const handleUseBrowserGps = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGpsStatus('Tu navegador no permite leer ubicación GPS directa; captura las coordenadas abajo.');
+      setGpsStatus(
+        'Tu navegador no permite leer ubicación GPS directa; captura las coordenadas abajo.',
+      );
       return;
     }
     setGpsStatus('Leyendo ubicación actual...');
@@ -155,9 +229,9 @@ export default function ParcelsAndGeorefModule({
       },
       () => {
         setGpsStatus(
-          'No se pudo obtener el permiso de ubicación. Puedes escribir la latitud y longitud manualmente.'
+          'No se pudo obtener el permiso de ubicación. Puedes escribir la latitud y longitud manualmente.',
         );
-      }
+      },
     );
   };
 
@@ -182,7 +256,7 @@ export default function ParcelsAndGeorefModule({
       if (captureMethod === 'MAPA_INTERACTIVO') {
         if (mapCoordinates.length < 3) {
           setFormError(
-            'Marca al menos 3 esquinas dando clic sobre el mapa interactivo antes de guardar.'
+            'Marca al menos 3 esquinas dando clic sobre el mapa interactivo antes de guardar.',
           );
           return;
         }
@@ -230,11 +304,7 @@ export default function ParcelsAndGeorefModule({
             gap: 10,
           }}
         >
-          <button
-            type="button"
-            className="btn-control"
-            onClick={() => setIsCreatingNew(false)}
-          >
+          <button type="button" className="btn-control" onClick={() => setIsCreatingNew(false)}>
             ← Volver a parcelas
           </button>
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textSecondary }}>
@@ -387,9 +457,7 @@ export default function ParcelsAndGeorefModule({
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                Método de marcado:
-              </span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Método de marcado:</span>
               <button
                 type="button"
                 onClick={() => setCaptureMethod('MAPA_INTERACTIVO')}
@@ -556,20 +624,8 @@ export default function ParcelsAndGeorefModule({
             gap: 10,
           }}
         >
-          <button
-            type="button"
-            className="btn-control"
-            onClick={() => onSelectParcel(null)}
-          >
+          <button type="button" className="btn-control" onClick={() => onSelectParcel(null)}>
             ← Ver menú de todas las parcelas
-          </button>
-
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setIsCreatingNew(true)}
-          >
-            ➕ Agregar nueva parcela
           </button>
         </div>
 
@@ -758,6 +814,204 @@ export default function ParcelsAndGeorefModule({
           ) : null}
         </section>
 
+        <section
+          aria-labelledby="parcel-docs-title"
+          style={{
+            backgroundColor: T.colors.surfaceCard,
+            border: `1.5px solid ${T.colors.borderSubtle}`,
+            borderRadius: 14,
+            padding: '20px 22px',
+            display: 'grid',
+            gap: 14,
+          }}
+        >
+          <div>
+            <h2
+              id="parcel-docs-title"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-serif)',
+                fontSize: '1.3rem',
+                color: T.colors.primaryGreen,
+              }}
+            >
+              📁 Documentación Legal de esta Parcela ({parcelDocs.length})
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.86rem', color: T.colors.textSecondary }}>
+              Adjunta aquí tu certificado parcelario, título de propiedad o constancia de limpieza
+              en PDF o fotografía para mantener completo el expediente de esta parcela.
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleUploadDocumentSubmit}
+            style={{
+              backgroundColor: T.colors.surfaceElevated,
+              border: `1px solid ${T.colors.borderSubtle}`,
+              borderRadius: 10,
+              padding: 14,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: 10,
+              alignItems: 'end',
+            }}
+          >
+            <div>
+              <label
+                htmlFor="parcel-doc-type"
+                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700 }}
+              >
+                Tipo de documento
+              </label>
+              <select
+                id="parcel-doc-type"
+                value={docTypeToUpload}
+                onChange={(e) =>
+                  setDocTypeToUpload(
+                    e.target.value as
+                      'CERTIFICADO_PARCELARIO' | 'TITULO_PROPIEDAD' | 'CUSTF_SEMARNAT',
+                  )
+                }
+                className="field-input"
+              >
+                <option value="CERTIFICADO_PARCELARIO">Certificado parcelario / ejidal</option>
+                <option value="TITULO_PROPIEDAD">Título de propiedad o escritura</option>
+                <option value="CUSTF_SEMARNAT">Constancia ambiental / permiso de limpieza</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="parcel-doc-file"
+                style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700 }}
+              >
+                Archivo (PDF, JPG, PNG o WEBP)
+              </label>
+              <input
+                id="parcel-doc-file"
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={(e) => setSelectedDocFile(e.target.files?.[0] ?? null)}
+                className="field-input"
+                style={{ padding: '6px 8px' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={uploadingDoc}
+              style={{ height: 40 }}
+            >
+              {uploadingDoc ? 'Subiendo al servidor...' : '📤 Subir documento al expediente'}
+            </button>
+          </form>
+
+          {docStatusMsg ? (
+            <div
+              role="status"
+              style={{
+                padding: '9px 12px',
+                borderRadius: 8,
+                backgroundColor: T.colors.statusGreenBg,
+                color: T.colors.statusGreen,
+                border: '1px solid #15803D',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+              }}
+            >
+              {docStatusMsg}
+            </div>
+          ) : null}
+
+          {docErrorMsg ? (
+            <div
+              role="alert"
+              style={{
+                padding: '9px 12px',
+                borderRadius: 8,
+                backgroundColor: T.colors.statusRedBg,
+                color: T.colors.statusRed,
+                border: '1px solid #B91C1C',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+              }}
+            >
+              {docErrorMsg}
+            </div>
+          ) : null}
+
+          {parcelDocs.length === 0 ? (
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 8,
+                backgroundColor: T.colors.backgroundPrimary,
+                border: `1px dashed ${T.colors.borderControl}`,
+                fontSize: '0.85rem',
+                color: T.colors.textSecondary,
+              }}
+            >
+              Aún no hay archivos adjuntos en el expediente digital de esta parcela.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {parcelDocs.map((doc) => (
+                <div
+                  key={doc.id}
+                  style={{
+                    backgroundColor: T.colors.backgroundPrimary,
+                    border: `1px solid ${T.colors.borderSubtle}`,
+                    borderRadius: 10,
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'grid', gap: 2 }}>
+                    <strong style={{ fontSize: '0.9rem', color: T.colors.primaryGreen }}>
+                      {doc.document_label}
+                    </strong>
+                    <span style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}>
+                      Archivo: <strong>{doc.file_name}</strong> ·{' '}
+                      {doc.verified_by_admin ? '✓ En regla' : 'Registrado'}
+                      {doc.uploaded_at ? ` · ${doc.uploaded_at.slice(0, 10)}` : ''}
+                    </span>
+                  </div>
+
+                  {doc.download_url ? (
+                    <a
+                      href={getParcelDocumentDownloadUrl(selectedParcel.parcelId, doc.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-control"
+                      style={{ textDecoration: 'none', fontSize: '0.78rem', padding: '5px 11px' }}
+                    >
+                      📄 Ver / Descargar
+                    </a>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        backgroundColor: T.colors.softGreenBg,
+                        color: T.colors.primaryGreen,
+                      }}
+                    >
+                      Folio verificado
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <LiveGeoEnginePanel parcel={selectedParcel} />
       </div>
     );
@@ -819,11 +1073,7 @@ export default function ParcelsAndGeorefModule({
             ))}
           </select>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setIsCreatingNew(true)}
-          >
+          <button type="button" className="btn-primary" onClick={() => setIsCreatingNew(true)}>
             ➕ Agregar nueva parcela
           </button>
         </div>
@@ -856,9 +1106,7 @@ export default function ParcelsAndGeorefModule({
         {visibleParcels.map((p) => {
           const friendly = getProducerFriendlyParcelStatus(p);
           const isLoadingThisParcel = preloadingParcelId === p.parcelId;
-          const progressPct = Math.round(
-            (preloadDoneCount / Math.max(preloadTotalCount, 1)) * 100
-          );
+          const progressPct = Math.round((preloadDoneCount / Math.max(preloadTotalCount, 1)) * 100);
           const toneColors =
             friendly.forestStatusTone === 'verde'
               ? { bg: T.colors.statusGreenBg, fg: T.colors.statusGreen, border: '#15803D' }
@@ -941,7 +1189,7 @@ export default function ParcelsAndGeorefModule({
                     color: friendly.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
                   }}
                 >
-                  📄 {friendly.papersStatusLabel}
+                  📄 {friendly.papersStatusLabel} · {p.documents?.length ?? 0} archivo(s)
                 </div>
               </div>
 
@@ -958,9 +1206,11 @@ export default function ParcelsAndGeorefModule({
                     gap: 6,
                   }}
                 >
-                  <div style={{ fontSize: '0.82rem', fontWeight: 800, color: T.colors.primaryGreen }}>
-                    🛰️ Descargando fotografías satelitales ({preloadDoneCount} /{' '}
-                    {preloadTotalCount})...
+                  <div
+                    style={{ fontSize: '0.82rem', fontWeight: 800, color: T.colors.primaryGreen }}
+                  >
+                    🛰️ Descargando fotografías satelitales ({preloadDoneCount} / {preloadTotalCount}
+                    )...
                   </div>
                   <div
                     style={{
@@ -982,7 +1232,9 @@ export default function ParcelsAndGeorefModule({
                   </div>
                 </div>
               ) : (
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.primaryGreen }}>
+                <span
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.primaryGreen }}
+                >
                   Abrir página de esta parcela →
                 </span>
               )}
