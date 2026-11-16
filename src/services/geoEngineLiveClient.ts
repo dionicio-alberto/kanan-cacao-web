@@ -4,6 +4,7 @@ import {
   NdviAlertLevel,
   ParcelAdminOverview,
   ParcelLegalDocument,
+  RegistrationDateAuditEntry,
 } from '@/services/sustainabilityAdminService';
 
 const rawGeoEngineUrl =
@@ -161,6 +162,7 @@ interface RawPersistedParcel {
   coordinates?: number[][];
   extent_bbox?: [number, number, number, number];
   registered_at_iso?: string;
+  registration_audit_log?: RegistrationDateAuditEntry[];
   documents?: ParcelLegalDocument[];
   historical_snapshots?: HistoricalParcelSnapshot[];
 }
@@ -291,6 +293,7 @@ export async function fetchPersistedParcelsWithMeta(): Promise<PersistedParcelsW
     coordinates: raw.coordinates,
     extentBbox: raw.extent_bbox,
     registeredAtIso: raw.registered_at_iso,
+    registrationAuditLog: raw.registration_audit_log,
     documents: raw.documents,
     historicalSnapshots: raw.historical_snapshots,
   }));
@@ -309,52 +312,52 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
 }> = [
   {
     period_key: 'registro_actual',
-    label: 'Última foto al registro (02/11/2026)',
+    label: 'Última foto alta res. (09/06/2025)',
     months_ago: 0,
-    wayback_release: 'mpc:S2A_MSIL2A_20261102T164701_R126_T15QVA_20261102T231820',
-    ref_date: '2026-11-02',
+    wayback_release: '43291',
+    ref_date: '2025-06-09',
   },
   {
     period_key: 'hace_6_meses',
-    label: 'Hace 6 meses (06/05/2026)',
+    label: 'Hace 4 años (30/04/2022)',
     months_ago: 6,
-    wayback_release: 'mpc:S2A_MSIL2A_20260506T164701_R126_T15QVV_20260507T045223',
-    ref_date: '2026-05-06',
+    wayback_release: '32246',
+    ref_date: '2022-04-30',
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 1 año (20/11/2025)',
+    label: 'Hace 5 años (17/02/2021)',
     months_ago: 12,
-    wayback_release: 'mpc:S2B_MSIL2A_20251120T164509_R126_T15QVA_20251120T201427',
-    ref_date: '2025-11-20',
+    wayback_release: '17825',
+    ref_date: '2021-02-17',
   },
   {
     period_key: 'hace_2_anios',
-    label: 'Hace 2 años (25/11/2024)',
+    label: 'Hace 7 años (24/02/2019)',
     months_ago: 24,
-    wayback_release: 'mpc:S2B_MSIL2A_20241125T164539_R126_T15QVV_20241125T203601',
-    ref_date: '2024-11-25',
+    wayback_release: '19187',
+    ref_date: '2019-02-24',
   },
   {
     period_key: 'hace_3_anios',
-    label: 'Hace 3 años (12/10/2023)',
+    label: 'Hace 9 años (12/02/2017)',
     months_ago: 36,
-    wayback_release: 'mpc:S2B_MSIL2A_20231012T164139_R126_T15QVA_20240925T214521',
-    ref_date: '2023-10-12',
+    wayback_release: '4383',
+    ref_date: '2017-02-12',
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 4 años (11/11/2022)',
+    label: 'Hace 11 años (17/05/2015)',
     months_ago: 48,
-    wayback_release: 'mpc:S2A_MSIL2A_20221111T164531_R126_T15QVA_20221112T061156',
-    ref_date: '2022-11-11',
+    wayback_release: '645',
+    ref_date: '2015-05-17',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 5 años (11/12/2021)',
+    label: 'Hace 13 años (31/03/2013)',
     months_ago: 60,
-    wayback_release: 'mpc:S2B_MSIL2A_20211211T164659_R126_T15QVV_20211212T133414',
-    ref_date: '2021-12-11',
+    wayback_release: '27946',
+    ref_date: '2013-03-31',
   },
 ];
 
@@ -582,6 +585,36 @@ export function getParcelDocumentDownloadUrl(parcelId: string, docId: string): s
   return `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/documents/${encodeURIComponent(docId)}/file`;
 }
 
+export async function updateParcelRegistrationDateAdminLive(params: {
+  parcelId: string;
+  newDateIso: string;
+  confirmationWord: string;
+  changedBy: string;
+  changedByRole: string;
+}): Promise<ParcelAdminOverview> {
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(params.parcelId)}/registration-date`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        new_date_iso: params.newDateIso,
+        confirmation_word: params.confirmationWord,
+        changed_by: params.changedBy,
+        changed_by_role: params.changedByRole,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(
+      errBody.detail ?? `No se pudo actualizar la fecha de registro: HTTP ${res.status}`,
+    );
+  }
+  const data = (await res.json()) as { parcel: RawPersistedParcel };
+  return mapRawParcelToOverview(data.parcel);
+}
+
 export async function fetchParcelHistoricalSnapshotsLive(
   parcelId: string,
   referenceDateIso?: string,
@@ -642,6 +675,7 @@ function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
     coordinates: raw.coordinates,
     extentBbox: raw.extent_bbox,
     registeredAtIso: raw.registered_at_iso,
+    registrationAuditLog: raw.registration_audit_log,
     documents: raw.documents,
     historicalSnapshots: raw.historical_snapshots,
   };
