@@ -7,6 +7,7 @@ import {
   FieldActivityType,
   FieldEvidencePhoto,
   FieldLogEntry,
+  formatDisplayDateEs,
 } from '@/services/producerLogbookService';
 import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
@@ -482,7 +483,7 @@ export default function FieldLogbookModule({
                   </strong>
                   <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
                     Parcela: <strong>{entry.parcelName}</strong> · Realizado el{' '}
-                    <strong>{entry.performedDate}</strong>
+                    <strong>{formatDisplayDateEs(entry.performedDate)}</strong>
                   </div>
                 </div>
 
@@ -497,7 +498,7 @@ export default function FieldLogbookModule({
                         fontWeight: 700,
                       }}
                     >
-                      🌱 Fertilización: {entry.fertilizationDate}
+                      🌱 Fertilización: {formatDisplayDateEs(entry.fertilizationDate)}
                     </span>
                   ) : null}
                   {entry.expectedHarvestDate ? (
@@ -510,7 +511,7 @@ export default function FieldLogbookModule({
                         fontWeight: 700,
                       }}
                     >
-                      🧺 Cosecha: {entry.expectedHarvestDate}
+                      🧺 Cosecha: {formatDisplayDateEs(entry.expectedHarvestDate)}
                     </span>
                   ) : null}
                 </div>

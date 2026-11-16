@@ -9,6 +9,8 @@ import {
   requestTracesNtExportLive,
 } from '@/services/geoEngineLiveClient';
 import {
+  formatDisplayDateEs,
+  formatSnapshotLabelEs,
   getNextTimelapsePeriodKey,
   getOrderedTimelapsePeriodKeys,
   getProducerFriendlyParcelStatus,
@@ -267,7 +269,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
               htmlFor="history-reference-date"
               style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
             >
-              Fecha de registro:
+              Fecha de registro ({formatDisplayDateEs(referenceDate)}):
             </label>
             <input
               id="history-reference-date"
@@ -326,7 +328,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 borderColor: isSelected ? T.colors.primaryGreen : T.colors.borderControl,
               }}
             >
-              {snap.label}
+              {formatSnapshotLabelEs(snap)}
             </button>
           );
         })}
@@ -440,11 +442,12 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
           >
             <div>
               <strong style={{ fontSize: '1.02rem', color: T.colors.primaryGreen }}>
-                {activeSnapshot.label}
+                {formatSnapshotLabelEs(activeSnapshot)}
               </strong>
               <div style={{ fontSize: '0.8rem', color: T.colors.textSecondary }}>
                 Fecha exacta en que el satélite tomó esta fotografía:{' '}
-                <strong>{activeSnapshot.captured_date_iso}</strong> · Cielo despejado verificado
+                <strong>{formatDisplayDateEs(activeSnapshot.captured_date_iso)}</strong> · Cielo
+                despejado verificado
                 {activeSnapshot.cached_image_url ? ' · Almacenada en servidor CDN' : ''}
               </div>
             </div>
@@ -464,7 +467,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
           <div
             role="img"
-            aria-label={`Vista satelital centrada: ${activeSnapshot.label} (${activeSnapshot.captured_date_iso})`}
+            aria-label={`Vista satelital centrada: ${formatSnapshotLabelEs(activeSnapshot)} (${formatDisplayDateEs(activeSnapshot.captured_date_iso)})`}
             style={{
               position: 'relative',
               width: '100%',
