@@ -8,6 +8,7 @@ export interface HistoricalParcelSnapshot {
   period_key: string;
   label: string;
   months_ago: number;
+  wayback_release?: string;
   captured_date_iso: string;
   extent_bbox: [number, number, number, number];
   direct_ortho_url: string;

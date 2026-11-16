@@ -34,3 +34,15 @@
 3. **Historial Centrado de 5 Años y Guardado Único en Servidor:**
    - En `kanan-cacao-geo-engine`, al crear o consultar una parcela por primera vez se calculan los linderos y se persiste en **Supabase PostGIS** el manifiesto de **7 tomas históricas** (*Última foto al registro*, *Hace 6 meses*, *1 año*, *2 años*, *3 años*, *4 años* y *5 años*) junto con caché de ortofoto en disco (`GET /api/v1/parcels/{parcel_id}/historical-image/{period_key}`), evitando recomputar la georreferencia en consultas posteriores.
    - En [LiveGeoEnginePanel.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/LiveGeoEnginePanel.tsx), se eliminaron los ejemplos técnicos y códigos de escena satelital (`S2B_...`), mostrando únicamente el visor centrado de los últimos 5 años.
+
+---
+
+## 3. Evolución AI-DLC `v0.5.0` — Navegación Unificada, Flujo Maestro/Detalle, Página Dedicada de Nueva Parcela, Mapa Plano y Wayback Histórico Real
+
+1. **Barra Única Diferenciada ([ProducerTopNav.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/ProducerTopNav.tsx)):**
+   - Una sola barra con pestañas de sección a la izquierda y cápsula diferenciada de **📍 Filtro parcela** (`"Todas las parcelas (Ver menú)"` opcional) a la derecha.
+2. **Navegación Maestro / Detalle / Nueva Parcela ([ParcelsAndGeorefModule.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/modules/ParcelsAndGeorefModule.tsx)):**
+   - Sin parcela seleccionada se muestra el **menú completo de parcelas**; al hacer clic en una parcela se abre su página con **Información General** y sus fotos históricas.
+   - Al pulsar **`➕ Agregar nueva parcela`** se abre una **página dedicada**, sin campo de árboles de sombra, con cálculo automático de hectáreas redondeado a 2 decimales y mapa plano sin relieve (CartoDB Voyager).
+3. **Imágenes Satelitales Históricas Reales ([LiveGeoEnginePanel.tsx](file:///Users/dionicioalberto/Documents/Github/kanan-cacao-web/src/components/LiveGeoEnginePanel.tsx)):**
+   - Mosaicos históricos reales de **Esri World Imagery Wayback** con releases distintos para cada época (`43291`, `10842`, `52930`, `46399`, `4905`, `8432`, `26751`) y **un solo selector de años** arriba de la fotografía satelital.
