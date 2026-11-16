@@ -39,13 +39,13 @@ const DEFAULT_TABASCO_RING: number[][] = [
 ];
 
 const DEFAULT_WAYBACK_BY_PERIOD: Record<string, string> = {
-  registro_actual: '43291',
-  hace_6_meses: '36557',
-  hace_1_anio: '4905',
-  hace_2_anios: '48376',
-  hace_3_anios: '239',
-  hace_4_anios: '26751',
-  hace_5_anios: '1052',
+  registro_actual: 's2cloudless-2025_3857',
+  hace_6_meses: 's2cloudless-2024_3857',
+  hace_1_anio: 's2cloudless-2023_3857',
+  hace_2_anios: 's2cloudless-2022_3857',
+  hace_3_anios: 's2cloudless-2021_3857',
+  hace_4_anios: 's2cloudless-2020_3857',
+  hace_5_anios: 's2cloudless-2019_3857',
 };
 
 function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boolean {
