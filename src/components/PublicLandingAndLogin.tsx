@@ -57,7 +57,7 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
       setErrorMsg(
         err instanceof Error
           ? err.message
-          : 'No pudimos verificar tus datos. Revisa tu correo y contraseña.'
+          : 'No pudimos verificar tus datos. Revisa tu correo y contraseña.',
       );
     } finally {
       setLoading(false);
@@ -187,8 +187,8 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
             >
               <strong>Kanan Cacao</strong> es una herramienta sencilla hecha para productoras,
               productores, técnicos y centros de acopio en la Chontalpa. Te ayuda a ubicar tus
-              parcelas en el mapa satelital, anotar fertilizaciones y cortes con fotos, registrar tus
-              entregas en báscula y sumar tus árboles de sombra para bonos de carbono.
+              parcelas en el mapa satelital, anotar fertilizaciones y cortes con fotos, registrar
+              tus entregas en báscula y sumar tus árboles de sombra para bonos de carbono.
             </p>
 
             <div

@@ -30,15 +30,14 @@ describe('Supabase Client Configuration', () => {
   });
 });
 
-
 describe('resolveRoleFromEmailOrProfile y helpers de Supabase Auth', () => {
   it('prioriza el rol explícito desde public.profiles sobre el correo', async () => {
     const { resolveRoleFromEmailOrProfile } = await import('@/services/supabaseClient');
     expect(resolveRoleFromEmailOrProfile('alguien@cacao-astra.org', 'admin_astra')).toBe(
-      'admin_astra'
+      'admin_astra',
     );
     expect(
-      resolveRoleFromEmailOrProfile('alguien@cacao-astra.org', 'auditor_sustentabilidad')
+      resolveRoleFromEmailOrProfile('alguien@cacao-astra.org', 'auditor_sustentabilidad'),
     ).toBe('auditor_sustentabilidad');
     expect(resolveRoleFromEmailOrProfile('admin@cacao-astra.org', 'acopiador')).toBe('acopiador');
   });
@@ -47,10 +46,10 @@ describe('resolveRoleFromEmailOrProfile y helpers de Supabase Auth', () => {
     const { resolveRoleFromEmailOrProfile } = await import('@/services/supabaseClient');
     expect(resolveRoleFromEmailOrProfile('admin@cacao-astra.org', null)).toBe('admin_astra');
     expect(resolveRoleFromEmailOrProfile('auditor.eudr@cacao-astra.org', undefined)).toBe(
-      'auditor_sustentabilidad'
+      'auditor_sustentabilidad',
     );
     expect(resolveRoleFromEmailOrProfile('acopio.chontalpa@cacao-astra.org', 'tecnico_campo')).toBe(
-      'acopiador'
+      'acopiador',
     );
   });
 
@@ -70,19 +69,18 @@ describe('resolveRoleFromEmailOrProfile y helpers de Supabase Auth', () => {
   });
 });
 
+it('retorna función unsubscribe segura en subscribeToSupabaseAuthChanges sin entorno configurado', async () => {
+  const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const prevKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  jest.resetModules();
 
-  it('retorna función unsubscribe segura en subscribeToSupabaseAuthChanges sin entorno configurado', async () => {
-    const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const prevKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    jest.resetModules();
+  const { subscribeToSupabaseAuthChanges } = await import('@/services/supabaseClient');
+  const unsubscribe = subscribeToSupabaseAuthChanges(() => {});
+  expect(typeof unsubscribe).toBe('function');
+  unsubscribe();
 
-    const { subscribeToSupabaseAuthChanges } = await import('@/services/supabaseClient');
-    const unsubscribe = subscribeToSupabaseAuthChanges(() => {});
-    expect(typeof unsubscribe).toBe('function');
-    unsubscribe();
-
-    if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
-    if (prevKey !== undefined) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prevKey;
-  });
+  if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
+  if (prevKey !== undefined) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prevKey;
+});

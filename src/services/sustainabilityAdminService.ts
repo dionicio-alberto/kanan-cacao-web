@@ -10,11 +10,25 @@ export interface HistoricalParcelSnapshot {
   months_ago: number;
   wayback_release?: string;
   capture_source?: string;
+  pixel_cloud_checked?: boolean;
   cloud_cover_pct?: number;
   captured_date_iso: string;
   extent_bbox: [number, number, number, number];
   direct_ortho_url: string;
+  cached_image_url?: string | null;
   server_cached_image_path: string;
+}
+
+export interface ParcelLegalDocument {
+  id: string;
+  parcel_id: string;
+  document_type: 'CERTIFICADO_PARCELARIO' | 'TITULO_PROPIEDAD' | 'CUSTF_SEMARNAT' | string;
+  document_label: string;
+  file_name: string;
+  sha256_hash: string;
+  verified_by_admin: boolean;
+  uploaded_at?: string | null;
+  download_url?: string | null;
 }
 
 export interface ParcelAdminOverview {
@@ -32,6 +46,8 @@ export interface ParcelAdminOverview {
   hasVerifiedCustfPermit: boolean;
   coordinates?: number[][];
   extentBbox?: [number, number, number, number];
+  registeredAtIso?: string;
+  documents?: ParcelLegalDocument[];
   historicalSnapshots?: HistoricalParcelSnapshot[];
 }
 

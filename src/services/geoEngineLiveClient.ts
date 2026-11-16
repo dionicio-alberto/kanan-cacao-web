@@ -3,6 +3,7 @@ import {
   HistoricalParcelSnapshot,
   NdviAlertLevel,
   ParcelAdminOverview,
+  ParcelLegalDocument,
 } from '@/services/sustainabilityAdminService';
 
 const rawGeoEngineUrl =
@@ -159,6 +160,8 @@ interface RawPersistedParcel {
   has_verified_custf_permit: boolean;
   coordinates?: number[][];
   extent_bbox?: [number, number, number, number];
+  registered_at_iso?: string;
+  documents?: ParcelLegalDocument[];
   historical_snapshots?: HistoricalParcelSnapshot[];
 }
 
@@ -188,7 +191,7 @@ export type GeoBboxTuple = [number, number, number, number];
 export function computePaddedGeoBbox(
   coordinates: number[][],
   padFactor = 0.45,
-  minPadDeg = 0.0025
+  minPadDeg = 0.0025,
 ): GeoBboxTuple {
   if (!coordinates || coordinates.length === 0) {
     return [-93.29, 18.248, -93.276, 18.258];
@@ -211,10 +214,7 @@ export function computePaddedGeoBbox(
   ];
 }
 
-export function fitBboxToAspectRatio(
-  bbox: GeoBboxTuple,
-  targetAspectRatio: number
-): GeoBboxTuple {
+export function fitBboxToAspectRatio(bbox: GeoBboxTuple, targetAspectRatio: number): GeoBboxTuple {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   const spanLng = Math.max(maxLng - minLng, 1e-6);
   const spanLat = Math.max(maxLat - minLat, 1e-6);
@@ -244,7 +244,7 @@ export function fitBboxToAspectRatio(
 export function buildSatelliteOrthoExportUrl(
   coordinates: number[][],
   imgWidth = 840,
-  imgHeight = 480
+  imgHeight = 480,
 ): { orthoUrl: string; extentBbox: GeoBboxTuple } {
   const rawBbox = computePaddedGeoBbox(coordinates);
   const extentBbox = fitBboxToAspectRatio(rawBbox, imgWidth / imgHeight);
@@ -260,7 +260,7 @@ export function projectCoordinatesToOrthoSvgPoints(
   coordinates: number[][],
   extentBbox: GeoBboxTuple,
   width = 420,
-  height = 240
+  height = 240,
 ): Array<{ x: number; y: number }> {
   if (!coordinates || coordinates.length === 0) return [];
   const [minLng, minLat, maxLng, maxLat] = extentBbox;
@@ -290,6 +290,8 @@ export async function fetchPersistedParcelsWithMeta(): Promise<PersistedParcelsW
     parcelName: raw.parcel_name,
     coordinates: raw.coordinates,
     extentBbox: raw.extent_bbox,
+    registeredAtIso: raw.registered_at_iso,
+    documents: raw.documents,
     historicalSnapshots: raw.historical_snapshots,
   }));
   return {
@@ -321,10 +323,10 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 1 año (2021-02-17)',
+    label: 'Hace 1 año (2021-03-24)',
     months_ago: 12,
-    wayback_release: '17825',
-    ref_date: '2021-02-17',
+    wayback_release: '4905',
+    ref_date: '2021-03-24',
   },
   {
     period_key: 'hace_2_anios',
@@ -342,17 +344,17 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 4 años (2013-03-31)',
+    label: 'Hace 4 años (2015-05-17)',
     months_ago: 48,
-    wayback_release: '1052',
-    ref_date: '2013-03-31',
+    wayback_release: '26751',
+    ref_date: '2015-05-17',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 5 años (2011-04-25)',
+    label: 'Hace 5 años (2013-03-31)',
     months_ago: 60,
-    wayback_release: '388',
-    ref_date: '2011-04-25',
+    wayback_release: '1052',
+    ref_date: '2013-03-31',
   },
 ];
 
@@ -366,7 +368,11 @@ function latLngToWorldPx(lat: number, lng: number, zoom: number): { x: number; y
   };
 }
 
-function latLngToWebMercatorTile(lat: number, lng: number, zoom = 16): { row: number; col: number } {
+function latLngToWebMercatorTile(
+  lat: number,
+  lng: number,
+  zoom = 16,
+): { row: number; col: number } {
   const n = Math.pow(2, zoom);
   const col = Math.floor(((lng + 180) / 360) * n);
   const latRad = (Math.max(-85.051128, Math.min(85.051128, lat)) * Math.PI) / 180;
@@ -377,7 +383,7 @@ function latLngToWebMercatorTile(lat: number, lng: number, zoom = 16): { row: nu
 export function computeCenteredWaybackViewport(
   coordinates: number[][],
   viewW = 760,
-  viewH = 420
+  viewH = 420,
 ): { centerLat: number; centerLng: number; zoom: number } {
   if (!coordinates || coordinates.length === 0) {
     return { centerLat: 18.2545, centerLng: -93.2825, zoom: 16 };
@@ -405,7 +411,7 @@ export function computeWaybackTileLayout(
   coordinates: number[][],
   waybackRelease: string,
   viewW = 760,
-  viewH = 420
+  viewH = 420,
 ): Array<{
   key: string;
   url: string;
@@ -437,9 +443,12 @@ export function computeWaybackTileLayout(
 
   for (let tx = minTx; tx <= maxTx; tx += 1) {
     for (let ty = minTy; ty <= maxTy; ty += 1) {
+      const tileUrl = waybackRelease.startsWith('s2cloudless-')
+        ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${zoom}/${ty}/${tx}.jpg`
+        : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`;
       tiles.push({
         key: `${waybackRelease}-${zoom}-${tx}-${ty}`,
-        url: `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${zoom}/${ty}/${tx}`,
+        url: tileUrl,
         leftPct: ((tx * tileSize - topLeftX) / viewW) * 100,
         topPct: ((ty * tileSize - topLeftY) / viewH) * 100,
         widthPct: (tileSize / viewW) * 100,
@@ -453,7 +462,7 @@ export function computeWaybackTileLayout(
 export async function preloadParcelHistoricalTiles(
   coordinates: number[][],
   snapshots: HistoricalParcelSnapshot[],
-  onProgress?: (doneCount: number, totalCount: number) => void
+  onProgress?: (doneCount: number, totalCount: number) => void,
 ): Promise<void> {
   if (typeof window === 'undefined' || !snapshots || snapshots.length === 0) {
     return;
@@ -463,10 +472,13 @@ export async function preloadParcelHistoricalTiles(
   let completed = 0;
 
   const preloadSingleSnapshot = (snap: HistoricalParcelSnapshot) => {
-    const release = snap.wayback_release || '43291';
-    const tileUrls = computeWaybackTileLayout(coordinates, release, 760, 420).map((t) => t.url);
+    const urls = snap.cached_image_url
+      ? [snap.cached_image_url]
+      : computeWaybackTileLayout(coordinates, snap.wayback_release || '43291', 760, 420).map(
+          (t) => t.url,
+        );
     return Promise.all(
-      tileUrls.map(
+      urls.map(
         (src) =>
           new Promise<void>((resolve) => {
             const img = new window.Image();
@@ -480,8 +492,8 @@ export async function preloadParcelHistoricalTiles(
               resolve();
             };
             img.src = src;
-          })
-      )
+          }),
+      ),
     ).then(() => {
       completed += 1;
       if (onProgress) {
@@ -495,7 +507,7 @@ export async function preloadParcelHistoricalTiles(
 
 export function buildHistoricalSnapshotsFallback(
   parcelId: string,
-  coordinates: number[][]
+  coordinates: number[][],
 ): HistoricalParcelSnapshot[] {
   const { extentBbox } = buildSatelliteOrthoExportUrl(coordinates, 840, 480);
   const centerLng = (extentBbox[0] + extentBbox[2]) / 2;
@@ -519,15 +531,58 @@ export function buildHistoricalSnapshotsFallback(
 }
 
 export function getSnapshotImageSrc(snapshot: HistoricalParcelSnapshot): string {
+  if (snapshot.cached_image_url) {
+    return snapshot.cached_image_url;
+  }
   if (snapshot.server_cached_image_path) {
-    return `${GEO_ENGINE_BASE_URL}${snapshot.server_cached_image_path}`;
+    const q = snapshot.wayback_release
+      ? `?wayback_release=${encodeURIComponent(snapshot.wayback_release)}`
+      : '';
+    return `${GEO_ENGINE_BASE_URL}${snapshot.server_cached_image_path}${q}`;
   }
   return snapshot.direct_ortho_url;
 }
 
+export async function fetchParcelDocumentsLive(parcelId: string): Promise<ParcelLegalDocument[]> {
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/documents`,
+    { method: 'GET', headers: { Accept: 'application/json' } },
+  );
+  if (!res.ok) {
+    throw new Error(`No se pudo consultar la documentación: HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as { documents?: ParcelLegalDocument[] };
+  return data.documents ?? [];
+}
+
+export async function uploadParcelDocumentLive(
+  parcelId: string,
+  documentType: 'CERTIFICADO_PARCELARIO' | 'TITULO_PROPIEDAD' | 'CUSTF_SEMARNAT',
+  file: File,
+): Promise<ParcelLegalDocument> {
+  const formData = new FormData();
+  formData.append('document_type', documentType);
+  formData.append('file', file);
+
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/documents`,
+    { method: 'POST', body: formData },
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo subir el documento: HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as { document: ParcelLegalDocument };
+  return data.document;
+}
+
+export function getParcelDocumentDownloadUrl(parcelId: string, docId: string): string {
+  return `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}/documents/${encodeURIComponent(docId)}/file`;
+}
+
 export async function fetchParcelHistoricalSnapshotsLive(
   parcelId: string,
-  referenceDateIso?: string
+  referenceDateIso?: string,
 ): Promise<{
   parcel_id: string;
   persisted_on_server: boolean;
@@ -542,7 +597,7 @@ export async function fetchParcelHistoricalSnapshotsLive(
     {
       method: 'GET',
       headers: { Accept: 'application/json' },
-    }
+    },
   );
   if (!res.ok) {
     throw new Error(`No se pudieron cargar las fotos históricas: HTTP ${res.status}`);
@@ -552,7 +607,7 @@ export async function fetchParcelHistoricalSnapshotsLive(
 
 export async function fetchLiveSentinel2Scene(
   parcelId: string,
-  coordinates: number[][]
+  coordinates: number[][],
 ): Promise<LiveSentinel2SceneResponse> {
   const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/audits/sentinel2-live`, {
     method: 'POST',
@@ -584,6 +639,8 @@ function mapRawParcelToOverview(raw: RawPersistedParcel): ParcelAdminOverview {
     hasVerifiedCustfPermit: Boolean(raw.has_verified_custf_permit),
     coordinates: raw.coordinates,
     extentBbox: raw.extent_bbox,
+    registeredAtIso: raw.registered_at_iso,
+    documents: raw.documents,
     historicalSnapshots: raw.historical_snapshots,
   };
 }
