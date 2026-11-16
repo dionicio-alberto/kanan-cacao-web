@@ -591,12 +591,20 @@ export async function updateParcelRegistrationDateAdminLive(params: {
   confirmationWord: string;
   changedBy: string;
   changedByRole: string;
+  accessToken?: string;
 }): Promise<ParcelAdminOverview> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (params.accessToken) {
+    headers.Authorization = `Bearer ${params.accessToken}`;
+  }
   const res = await fetch(
     `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(params.parcelId)}/registration-date`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify({
         new_date_iso: params.newDateIso,
         confirmation_word: params.confirmationWord,
@@ -755,4 +763,100 @@ export async function syncFieldParcelToSqliteLive(params: {
   }
   const data = (await res.json()) as { remote_changed_parcels: RawPersistedParcel[] };
   return (data.remote_changed_parcels ?? []).map(mapRawParcelToOverview);
+}
+
+export interface AdminRolesPanelPayload {
+  profiles: import('@/types/adminDomain').AdminManagedProfile[];
+  roles: import('@/types/adminDomain').EditableRoleDefinition[];
+}
+
+export async function fetchAdminRolesPanelLive(params: {
+  requesterRole: string;
+  accessToken?: string;
+}): Promise<AdminRolesPanelPayload> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (params.accessToken) {
+    headers.Authorization = `Bearer ${params.accessToken}`;
+  }
+  const q = new URLSearchParams({ requester_role: params.requesterRole }).toString();
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/roles-panel?${q}`, {
+    method: 'GET',
+    headers,
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo cargar el panel admin: HTTP ${res.status}`);
+  }
+  return (await res.json()) as AdminRolesPanelPayload;
+}
+
+export async function assignProfileRoleAdminLive(params: {
+  userId: string;
+  roleKey: string;
+  changedBy: string;
+  requesterRole: string;
+  accessToken?: string;
+}): Promise<AdminRolesPanelPayload> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (params.accessToken) {
+    headers.Authorization = `Bearer ${params.accessToken}`;
+  }
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/admin/profiles/${encodeURIComponent(params.userId)}/role`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        role_key: params.roleKey,
+        requester_role: params.requesterRole,
+        changed_by: params.changedBy,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo asignar el rol: HTTP ${res.status}`);
+  }
+  return (await res.json()) as AdminRolesPanelPayload;
+}
+
+export async function saveRoleDefinitionAdminLive(params: {
+  roleKey: string;
+  displayName: string;
+  description: string;
+  permissions: import('@/types/adminDomain').RolePermissionSet;
+  changedBy: string;
+  requesterRole: string;
+  accessToken?: string;
+}): Promise<AdminRolesPanelPayload> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (params.accessToken) {
+    headers.Authorization = `Bearer ${params.accessToken}`;
+  }
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/admin/roles/${encodeURIComponent(params.roleKey)}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        role_key: params.roleKey,
+        display_name: params.displayName,
+        description: params.description,
+        permissions: params.permissions,
+        requester_role: params.requesterRole,
+        changed_by: params.changedBy,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo guardar el rol: HTTP ${res.status}`);
+  }
+  return (await res.json()) as AdminRolesPanelPayload;
 }

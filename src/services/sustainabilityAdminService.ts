@@ -9,12 +9,15 @@ export interface HistoricalParcelSnapshot {
   label: string;
   months_ago: number;
   wayback_release?: string;
+  render_zoom?: number;
   capture_source?: string;
   pixel_cloud_checked?: boolean;
   high_res_verified?: boolean;
   sharpness_g1?: number;
   resolution_label?: string;
   cloud_cover_pct?: number;
+  cloud_attempts_used?: number;
+  cloud_fallback_least_cloudy?: boolean;
   captured_date_iso: string;
   extent_bbox: [number, number, number, number];
   direct_ortho_url: string;
