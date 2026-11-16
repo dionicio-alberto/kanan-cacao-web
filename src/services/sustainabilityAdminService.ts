@@ -10,6 +10,8 @@ export interface HistoricalParcelSnapshot {
   months_ago: number;
   wayback_release?: string;
   render_zoom?: number;
+  image_width?: number;
+  image_height?: number;
   capture_source?: string;
   pixel_cloud_checked?: boolean;
   high_res_verified?: boolean;
