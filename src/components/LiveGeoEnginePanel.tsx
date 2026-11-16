@@ -1,240 +1,176 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import SentinelSatelliteCard from '@/components/SentinelSatelliteCard';
 import {
-  buildSatelliteOrthoExportUrl,
-  PRESET_POLYGONS,
-  PresetPolygonKey,
+  buildHistoricalSnapshotsFallback,
+  fetchParcelHistoricalSnapshotsLive,
+  getSnapshotImageSrc,
   projectCoordinatesToOrthoSvgPoints,
-  projectCoordinatesToSvgPoints,
   requestTracesNtExportLive,
-  TopologyValidationResponse,
-  validateTopologyLive,
 } from '@/services/geoEngineLiveClient';
+import { getProducerFriendlyParcelStatus } from '@/services/producerLogbookService';
 import {
   evaluateCustfAdminCompliance,
+  HistoricalParcelSnapshot,
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
-import { getProducerFriendlyParcelStatus } from '@/services/producerLogbookService';
-
-const FRIENDLY_PRESET_LABELS: Record<PresetPolygonKey, { label: string; description: string }> = {
-  SELF_INTERSECTING_BOWTIE: {
-    label: 'Ejemplo: Terreno con líneas cruzadas',
-    description:
-      'Ejemplo práctico de cuando al caminar la parcela con el teléfono se cruzan los lados o falta cerrar la última esquina.',
-  },
-  CLEAN_COMALCALCO: {
-    label: 'Ejemplo: Parcela bien medida (> 4 ha)',
-    description: 'Ejemplo de un terreno medido en cuadro sin cruces en Comalcalco.',
-  },
-};
 
 const SVG_W = 420;
 const SVG_H = 240;
 
-function PolygonSvg({
+const DEFAULT_TABASCO_RING: number[][] = [
+  [-93.2845, 18.256],
+  [-93.281, 18.256],
+  [-93.281, 18.2525],
+  [-93.2845, 18.2525],
+  [-93.2845, 18.256],
+];
+
+function CenteredHistoricalParcelSvg({
+  snapshot,
   coordinates,
-  closeRing,
-  stroke,
-  fill,
-  title,
-  subtitle,
-  badgeText,
-  badgeBg,
-  badgeColor,
-  badgeBorder,
-  showSatelliteBackdrop = true,
+  width = SVG_W,
+  height = SVG_H,
+  showLabels = true,
 }: {
+  snapshot: HistoricalParcelSnapshot;
   coordinates: number[][];
-  closeRing: boolean;
-  stroke: string;
-  fill: string;
-  title: string;
-  subtitle: string;
-  badgeText: string;
-  badgeBg: string;
-  badgeColor: string;
-  badgeBorder: string;
-  showSatelliteBackdrop?: boolean;
+  width?: number;
+  height?: number;
+  showLabels?: boolean;
 }) {
-  const orthoData = showSatelliteBackdrop
-    ? buildSatelliteOrthoExportUrl(coordinates, SVG_W * 2, SVG_H * 2)
-    : null;
-  const pointList = orthoData
-    ? projectCoordinatesToOrthoSvgPoints(coordinates, orthoData.extentBbox, SVG_W, SVG_H)
-    : projectCoordinatesToSvgPoints(coordinates, SVG_W, SVG_H)
-        .split(' ')
-        .map((pt) => {
-          const [x, y] = pt.split(',').map(Number);
-          return { x, y };
-        });
-  const points = pointList.map((pt) => `${pt.x},${pt.y}`).join(' ');
+  const [useDirectFallback, setUseDirectFallback] = useState(false);
+  const points = projectCoordinatesToOrthoSvgPoints(
+    coordinates,
+    snapshot.extent_bbox,
+    width,
+    height
+  );
+  const polygonPointsStr = points.map((pt) => `${pt.x},${pt.y}`).join(' ');
+  const imgHref = useDirectFallback
+    ? snapshot.direct_ortho_url
+    : getSnapshotImageSrc(snapshot);
 
   return (
-    <figure
+    <svg
+      role="img"
+      aria-label={`Fotografía satelital de parcela: ${snapshot.label}`}
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
       style={{
-        margin: 0,
-        backgroundColor: T.colors.backgroundPrimary,
-        padding: 16,
-        borderRadius: 10,
-        border: `1px solid ${T.colors.borderSubtle}`,
+        width: '100%',
+        height: 'auto',
+        aspectRatio: `${width} / ${height}`,
+        backgroundColor: '#112418',
+        borderRadius: 8,
+        border: `2px solid ${T.colors.primaryGreen}`,
+        display: 'block',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 4,
-          gap: 8,
+      <image
+        href={imgHref}
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        preserveAspectRatio="none"
+        onError={() => {
+          if (!useDirectFallback) {
+            setUseDirectFallback(true);
+          }
         }}
-      >
-        <figcaption style={{ fontWeight: 700, fontSize: '0.95rem', color: T.colors.textPrimary }}>
-          {title}
-        </figcaption>
-        <span
-          style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            padding: '2px 8px',
-            borderRadius: 4,
-            backgroundColor: badgeBg,
-            color: badgeColor,
-            border: `1px solid ${badgeBorder}`,
-          }}
-        >
-          {badgeText}
-        </span>
-      </div>
-      <div style={{ fontSize: '0.8125rem', color: T.colors.textSecondary, marginBottom: 10 }}>
-        {subtitle}
-      </div>
+      />
 
-      <svg
-        role="img"
-        aria-label={`${title}: ${subtitle}`}
-        width={SVG_W}
-        height={SVG_H}
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        style={{
-          width: '100%',
-          height: 'auto',
-          aspectRatio: `${SVG_W} / ${SVG_H}`,
-          backgroundColor: '#112418',
-          borderRadius: 8,
-          border: `2px solid ${T.colors.primaryGreen}`,
-          display: 'block',
-        }}
-      >
-        {orthoData ? (
-          <image
-            href={orthoData.orthoUrl}
-            x={0}
-            y={0}
-            width={SVG_W}
-            height={SVG_H}
-            preserveAspectRatio="none"
-            opacity={0.86}
-          />
-        ) : null}
-        <g transform="translate(384, 28)" aria-hidden="true">
-          <circle r="14" fill="#1E3A28" stroke="#B7C9BD" strokeWidth="1.2" />
-          <text
-            x="0"
-            y="4"
-            textAnchor="middle"
-            fill="#F7F4EC"
-            fontSize="10"
-            fontWeight="bold"
-            fontFamily="monospace"
-          >
-            N
-          </text>
-        </g>
-        <text x="12" y="226" fill="#B7C9BD" fontSize="11" fontFamily="monospace" aria-hidden="true">
-          Datum WGS84 · EPSG:4326 · Chontalpa, Tabasco
-        </text>
+      {points.length >= 3 ? (
+        <polygon
+          points={polygonPointsStr}
+          fill="rgba(134, 239, 172, 0.24)"
+          stroke="#4ADE80"
+          strokeWidth={showLabels ? 3 : 2.2}
+        />
+      ) : null}
 
-        {closeRing ? (
-          <polygon points={points} fill={fill} stroke={stroke} strokeWidth={3} />
-        ) : (
-          <polyline
-            points={points}
-            fill="none"
-            stroke={stroke}
-            strokeWidth={3}
-            strokeDasharray="7 5"
-          />
-        )}
-
-        {pointList.map((pt, i) => (
-          <g key={`${pt.x}-${pt.y}-${i}`} aria-hidden="true">
-            <circle cx={pt.x} cy={pt.y} r={5.5} fill="#112418" stroke={stroke} strokeWidth={2.5} />
-            <text
-              x={pt.x + 8}
-              y={pt.y - 7}
-              fill="#F7F4EC"
-              fontSize="11"
-              fontWeight="bold"
-              fontFamily="monospace"
-            >
-              V{i + 1}
-            </text>
-          </g>
-        ))}
-      </svg>
-    </figure>
+      {showLabels
+        ? points.map((pt, idx) => (
+            <circle
+              key={`pt-${idx}`}
+              cx={pt.x}
+              cy={pt.y}
+              r={4}
+              fill="#112418"
+              stroke="#86EFAC"
+              strokeWidth={2}
+            />
+          ))
+        : null}
+    </svg>
   );
 }
 
 export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOverview }) {
-  const [geometryMode, setGeometryMode] = useState<'PARCEL_POSTGIS' | 'PRESET'>('PARCEL_POSTGIS');
-  const [presetKey, setPresetKey] = useState<PresetPolygonKey>('SELF_INTERSECTING_BOWTIE');
-  const [showSatelliteBackdrop, setShowSatelliteBackdrop] = useState<boolean>(true);
-  const [report, setReport] = useState<TopologyValidationResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const activeCoordinates =
+    Array.isArray(parcel.coordinates) && parcel.coordinates.length >= 3
+      ? parcel.coordinates
+      : DEFAULT_TABASCO_RING;
+
+  const [snapshots, setSnapshots] = useState<HistoricalParcelSnapshot[]>(() =>
+    Array.isArray(parcel.historicalSnapshots) && parcel.historicalSnapshots.length === 7
+      ? parcel.historicalSnapshots
+      : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates)
+  );
+  const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('registro_actual');
+  const [persistedOnServer, setPersistedOnServer] = useState<boolean>(
+    Boolean(parcel.historicalSnapshots && parcel.historicalSnapshots.length === 7)
+  );
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const coordKey = JSON.stringify(activeCoordinates);
 
   useEffect(() => {
-    setReport(null);
-    setError(null);
     setExportMsg(null);
-  }, [parcel.parcelId]);
+    setError(null);
+    setSelectedPeriodKey('registro_actual');
 
-  const preset = PRESET_POLYGONS[presetKey];
-  const hasParcelCoords = Array.isArray(parcel.coordinates) && parcel.coordinates.length >= 3;
-  const usingPostgisParcel = geometryMode === 'PARCEL_POSTGIS' && hasParcelCoords;
-  const activeCoordinates = usingPostgisParcel ? parcel.coordinates! : preset.coordinates;
-  const activeGeometryLabel = usingPostgisParcel
-    ? `Linderos guardados (${parcel.parcelName || parcel.parcelId})`
-    : FRIENDLY_PRESET_LABELS[presetKey].label;
+    // Si los 7 momentos ya llegaron guardados en la parcela desde el servidor, no se re-ejecutan.
+    if (Array.isArray(parcel.historicalSnapshots) && parcel.historicalSnapshots.length === 7) {
+      setSnapshots(parcel.historicalSnapshots);
+      setPersistedOnServer(true);
+      return;
+    }
 
+    let active = true;
+    const parsedCoords = JSON.parse(coordKey) as number[][];
+    const localFallback = buildHistoricalSnapshotsFallback(parcel.parcelId, parsedCoords);
+    setSnapshots(localFallback);
+
+    fetchParcelHistoricalSnapshotsLive(parcel.parcelId)
+      .then((res) => {
+        if (active && Array.isArray(res.snapshots) && res.snapshots.length === 7) {
+          setSnapshots(res.snapshots);
+          setPersistedOnServer(Boolean(res.persisted_on_server));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPersistedOnServer(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [parcel.parcelId, parcel.historicalSnapshots, coordKey]);
+
+  const activeSnapshot =
+    snapshots.find((item) => item.period_key === selectedPeriodKey) ?? snapshots[0];
   const friendlyStatus = getProducerFriendlyParcelStatus(parcel);
   const custf = evaluateCustfAdminCompliance(parcel);
-  const canExportTraces = parcel.eudrStatus === 'VERDE' && !custf.isProducerBlocked;
+  const canExportOriginDossier = parcel.eudrStatus === 'VERDE' && !custf.isProducerBlocked;
 
-  const runLinter = async () => {
-    setLoading(true);
-    setError(null);
-    setReport(null);
-    try {
-      setReport(await validateTopologyLive(parcel.parcelId, activeCoordinates));
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? `${e.message}. Verifica la conexión con el servicio de mapas.`
-          : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const exportTraces = async () => {
+  const handleDownloadOriginFile = async () => {
     setExportMsg(null);
     setError(null);
     try {
@@ -242,7 +178,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         parcelId: parcel.parcelId,
         producerId: parcel.producerId,
         municipality: parcel.municipality,
-        coordinates: report ? report.polygon.coordinates[0] : activeCoordinates,
+        coordinates: activeCoordinates,
         eudrStatus: parcel.eudrStatus,
         acahualRemovalPost2020: parcel.acahualRemovalPost2020,
         hasVerifiedCustfPermit: parcel.hasVerifiedCustfPermit,
@@ -256,9 +192,9 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
       a.click();
       URL.revokeObjectURL(url);
       setExportMsg(
-        `Expediente de origen descargado para ${parcel.parcelName || parcel.parcelId}. Folio de seguridad: ${String(
-          pkg.package_integrity_sha256,
-        ).slice(0, 16)}...`,
+        `Expediente de origen descargado para ${parcel.parcelName || parcel.parcelId}. Folio: ${String(
+          pkg.package_integrity_sha256
+        ).slice(0, 14)}...`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -267,434 +203,258 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
   return (
     <section
-      id="linter-cartografico"
-      aria-labelledby="heading-linter"
+      id="visor-historico-parcela"
+      aria-labelledby="heading-historico-satelital"
       style={{
         backgroundColor: T.colors.surfaceCard,
-        border: `1px solid ${T.colors.borderSubtle}`,
-        borderRadius: 12,
+        border: `1.5px solid ${T.colors.borderSubtle}`,
+        borderRadius: 14,
         padding: '24px 22px',
-        marginTop: 22,
+        display: 'grid',
+        gap: 18,
       }}
     >
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'baseline',
+          alignItems: 'center',
           flexWrap: 'wrap',
           gap: 12,
-          marginBottom: 8,
         }}
       >
-        <h2
-          id="heading-linter"
-          style={{
-            margin: 0,
-            color: T.colors.primaryGreen,
-            fontFamily: 'var(--font-serif)',
-            fontSize: '1.35rem',
-          }}
-        >
-          Mapa Satelital y Revisión de Linderos de tu Parcela
-        </h2>
+        <div>
+          <h2
+            id="heading-historico-satelital"
+            style={{
+              margin: 0,
+              color: T.colors.primaryGreen,
+              fontFamily: 'var(--font-serif)',
+              fontSize: '1.42rem',
+            }}
+          >
+            Historial Satelital de la Parcela (Últimos 5 Años)
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '0.9rem', color: T.colors.textSecondary }}>
+            Vista centrada en <strong>{parcel.parcelName || parcel.producerName}</strong> (
+            {parcel.municipality}, {parcel.areaHectares} hectáreas). Compara cómo se ha visto tu
+            cacaotal desde su registro hasta hace 5 años.
+          </p>
+        </div>
 
         <span
           style={{
-            fontSize: '0.75rem',
+            fontSize: '0.76rem',
             fontWeight: 700,
-            padding: '4px 10px',
+            padding: '5px 10px',
             borderRadius: 6,
-            backgroundColor: T.colors.softGreenBg,
-            color: T.colors.primaryGreen,
-            border: `1px solid ${T.colors.primaryGreen}`,
+            backgroundColor: persistedOnServer ? T.colors.statusGreenBg : T.colors.softCacaoBg,
+            color: persistedOnServer ? T.colors.statusGreen : T.colors.earthCacao,
+            border: `1px solid ${persistedOnServer ? '#15803D' : T.colors.earthCacao}`,
           }}
         >
-          Servicio satelital conectado
+          {persistedOnServer
+            ? '✓ Georreferencia y mapas guardados en servidor'
+            : 'Vista centrada de la parcela'}
         </span>
       </div>
 
-      <p style={{ fontSize: '0.9rem', color: T.colors.textSecondary, marginTop: 0 }}>
-        Revisa los linderos de tu parcela sobre fotografía satelital real o prueba con un ejemplo
-        para asegurarte de que todas las esquinas del terreno cierren bien:
-      </p>
-
+      {/* Selector de época (7 momentos en 5 años) */}
       <div
         role="group"
-        aria-label="Seleccionar linderos y vista satelital"
-        style={{
-          display: 'flex',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 12,
-        }}
+        aria-label="Seleccionar época de fotografía satelital"
+        style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
       >
-        <button
-          type="button"
-          aria-pressed={usingPostgisParcel}
-          disabled={!hasParcelCoords}
-          onClick={() => {
-            setGeometryMode('PARCEL_POSTGIS');
-            setReport(null);
-            setError(null);
-            setExportMsg(null);
-          }}
-          className="btn-control"
-          style={{
-            backgroundColor: usingPostgisParcel ? T.colors.primaryGreen : T.colors.surfaceCard,
-            color: usingPostgisParcel ? '#FFFFFF' : T.colors.textPrimary,
-            borderColor: usingPostgisParcel ? T.colors.primaryGreen : T.colors.borderControl,
-            opacity: hasParcelCoords ? 1 : 0.6,
-          }}
-        >
-          Linderos registrados de mi parcela
-        </button>
-
-        {(Object.keys(PRESET_POLYGONS) as PresetPolygonKey[]).map((key) => {
-          const isSelected = geometryMode === 'PRESET' && presetKey === key;
+        {snapshots.map((snap) => {
+          const isSelected = snap.period_key === activeSnapshot?.period_key;
           return (
             <button
-              key={key}
+              key={snap.period_key}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => {
-                setGeometryMode('PRESET');
-                setPresetKey(key);
-                setReport(null);
-                setError(null);
-                setExportMsg(null);
-              }}
+              onClick={() => setSelectedPeriodKey(snap.period_key)}
               className="btn-control"
               style={{
-                backgroundColor: isSelected ? T.colors.primaryGreen : T.colors.surfaceCard,
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                backgroundColor: isSelected ? T.colors.primaryGreen : T.colors.surfaceElevated,
                 color: isSelected ? '#FFFFFF' : T.colors.textPrimary,
                 borderColor: isSelected ? T.colors.primaryGreen : T.colors.borderControl,
               }}
             >
-              {FRIENDLY_PRESET_LABELS[key].label}
+              {snap.label}
             </button>
           );
         })}
+      </div>
 
-        <button
-          type="button"
-          aria-pressed={showSatelliteBackdrop}
-          onClick={() => setShowSatelliteBackdrop((prev) => !prev)}
-          className="btn-control"
+      {/* Visor principal centrado */}
+      {activeSnapshot ? (
+        <div
           style={{
-            marginLeft: 'auto',
-            backgroundColor: showSatelliteBackdrop ? T.colors.earthCacao : T.colors.surfaceCard,
-            color: showSatelliteBackdrop ? '#FFFFFF' : T.colors.textPrimary,
-            borderColor: showSatelliteBackdrop ? T.colors.earthCacao : T.colors.borderControl,
+            backgroundColor: T.colors.backgroundPrimary,
+            border: `1.5px solid ${T.colors.borderSubtle}`,
+            borderRadius: 12,
+            padding: 16,
+            display: 'grid',
+            gap: 10,
           }}
         >
-          {showSatelliteBackdrop ? 'Viendo foto satelital real' : 'Viendo fondo oscuro'}
-        </button>
-      </div>
-
-      <p
-        style={{
-          fontSize: '0.85rem',
-          color: T.colors.earthCacao,
-          backgroundColor: T.colors.softCacaoBg,
-          padding: '10px 14px',
-          borderRadius: 6,
-          border: `1px solid ${T.colors.earthCacao}`,
-          marginTop: 0,
-          marginBottom: 18,
-          fontWeight: 600,
-        }}
-      >
-        Vista actual:{' '}
-        {usingPostgisParcel
-          ? `Mapa georreferenciado de ${parcel.parcelName || parcel.producerName} (${parcel.municipality}, ${parcel.areaHectares} hectáreas).`
-          : FRIENDLY_PRESET_LABELS[presetKey].description}
-      </p>
-
-      <div style={{ marginBottom: 18 }}>
-        <SentinelSatelliteCard
-          parcel={parcel}
-          coordinates={activeCoordinates}
-          geometrySourceLabel={activeGeometryLabel}
-        />
-      </div>
-
-      <div className="dual-canvas-grid" style={{ marginBottom: 18 }}>
-        <PolygonSvg
-          title="Linderos tomados en terreno"
-          subtitle={`${activeCoordinates.length} puntos del recorrido · ${activeGeometryLabel}`}
-          badgeText="Trazo tomado"
-          badgeBg={T.colors.statusRedBg}
-          badgeColor={T.colors.statusRed}
-          badgeBorder="#B91C1C"
-          coordinates={activeCoordinates}
-          closeRing={false}
-          stroke="#FCA5A5"
-          fill="none"
-          showSatelliteBackdrop={showSatelliteBackdrop}
-        />
-
-        {loading && (
           <div
-            role="status"
             style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              borderRadius: 10,
-              border: `2px solid ${T.colors.primaryGreen}`,
-              padding: 24,
               display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              textAlign: 'center',
-              minHeight: 260,
+              flexWrap: 'wrap',
+              gap: 8,
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: T.colors.primaryGreen }}>
-              Revisando linderos y midiendo superficie...
+            <div>
+              <strong style={{ fontSize: '1.05rem', color: T.colors.primaryGreen }}>
+                {activeSnapshot.label}
+              </strong>
+              <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
+                Fecha de referencia: <strong>{activeSnapshot.captured_date_iso}</strong> · Terreno
+                centrado dentro de su lindero verde
+              </div>
             </div>
-            <p style={{ fontSize: '0.85rem', color: T.colors.textSecondary, marginTop: 8 }}>
-              Comprobando que las esquinas cierren bien, no haya líneas cruzadas y calculando las
-              hectáreas exactas.
-            </p>
-          </div>
-        )}
-
-        {!loading && report && (
-          <PolygonSvg
-            title="Linderos corregidos y cerrados"
-            subtitle={`Superficie medida: ${report.area_hectares} hectáreas · ${report.vertex_count} esquinas`}
-            badgeText="Linderos en regla"
-            badgeBg={T.colors.statusGreenBg}
-            badgeColor={T.colors.statusGreen}
-            badgeBorder="#15803D"
-            coordinates={report.polygon.coordinates[0]}
-            closeRing
-            stroke="#86EFAC"
-            fill="rgba(134, 239, 172, 0.22)"
-            showSatelliteBackdrop={showSatelliteBackdrop}
-          />
-        )}
-
-        {!loading && !report && (
-          <div
-            role="status"
-            style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              borderRadius: 10,
-              border: `2px dashed ${T.colors.borderControl}`,
-              padding: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center',
-              minHeight: 260,
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: T.colors.primaryGreen }}>
-              Aún no se revisan estos linderos
-            </div>
-            <p
+            <span
               style={{
-                fontSize: '0.85rem',
-                color: T.colors.textSecondary,
-                maxWidth: 340,
-                margin: '8px 0 0',
-              }}
-            >
-              Pulsa el botón <strong>Revisar y corregir linderos en el mapa</strong> aquí abajo para
-              comprobar el tamaño y cierre de la parcela.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {report && (
-        <div className="diagnostics-strip" style={{ marginBottom: 18 }}>
-          <div
-            style={{
-              backgroundColor: T.colors.statusGreenBg,
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: '1px solid #15803D',
-            }}
-          >
-            <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Estado del mapa
-            </div>
-            <div style={{ fontWeight: 700, color: T.colors.statusGreen, fontSize: '0.9rem' }}>
-              {report.is_topology_valid ? 'Cerrado y sin cruces' : 'Con errores'}
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: `1px solid ${T.colors.borderSubtle}`,
-            }}
-          >
-            <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Cierre de esquinas
-            </div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-              {report.was_ring_auto_closed ? 'Cerrado automáticamente' : 'Cerrado desde campo'}
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: `1px solid ${T.colors.borderSubtle}`,
-            }}
-          >
-            <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Líneas cruzadas
-            </div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-              {report.was_self_intersection_repaired
-                ? 'Corregido en el mapa'
-                : 'Sin cruces detectados'}
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: `1px solid ${T.colors.borderSubtle}`,
-            }}
-          >
-            <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Superficie medida
-            </div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: '0.9rem',
+                backgroundColor: T.colors.softGreenBg,
                 color: T.colors.primaryGreen,
-                fontFamily: 'var(--font-mono)',
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: '0.78rem',
+                fontWeight: 700,
               }}
             >
-              {report.area_hectares} hectáreas
-            </div>
+              {parcel.areaHectares} hectáreas · {parcel.shadeTreeCount} árboles de sombra
+            </span>
           </div>
 
-          <div
-            style={{
-              backgroundColor: T.colors.backgroundPrimary,
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: `1px solid ${T.colors.borderSubtle}`,
-            }}
-          >
-            <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Requisito por tamaño ({'>'} 4 ha)
-            </div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-              {report.requires_mandatory_polygon_eudr
-                ? 'Requiere mapa completo'
-                : 'Parcela pequeña (menor o igual a 4 ha)'}
-            </div>
+          <div style={{ maxWidth: 780, width: '100%', margin: '0 auto' }}>
+            <CenteredHistoricalParcelSvg
+              key={`${parcel.parcelId}-${activeSnapshot.period_key}`}
+              snapshot={activeSnapshot}
+              coordinates={activeCoordinates}
+              width={SVG_W}
+              height={SVG_H}
+              showLabels
+            />
           </div>
         </div>
-      )}
+      ) : null}
 
+      {/* Galería completa de los 7 periodos históricos */}
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h3 style={{ margin: 0, fontSize: '1rem', color: T.colors.earthCacao }}>
+          Comparación cronológica completa (del registro a hace 5 años)
+        </h3>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: 12,
+          }}
+        >
+          {snapshots.map((snap) => {
+            const isSelected = snap.period_key === activeSnapshot?.period_key;
+            return (
+              <button
+                key={snap.period_key}
+                type="button"
+                onClick={() => setSelectedPeriodKey(snap.period_key)}
+                style={{
+                  textAlign: 'left',
+                  padding: 10,
+                  borderRadius: 10,
+                  border: `2px solid ${
+                    isSelected ? T.colors.primaryGreen : T.colors.borderSubtle
+                  }`,
+                  backgroundColor: isSelected ? T.colors.softGreenBg : T.colors.surfaceElevated,
+                  cursor: 'pointer',
+                  display: 'grid',
+                  gap: 6,
+                }}
+              >
+                <CenteredHistoricalParcelSvg
+                  snapshot={snap}
+                  coordinates={activeCoordinates}
+                  width={280}
+                  height={160}
+                  showLabels={false}
+                />
+                <strong style={{ fontSize: '0.84rem', color: T.colors.primaryGreen }}>
+                  {snap.label}
+                </strong>
+                <span style={{ fontSize: '0.76rem', color: T.colors.textSecondary }}>
+                  Referencia: {snap.captured_date_iso}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Estado amigable y descarga de expediente */}
       <div
         style={{
           backgroundColor: T.colors.backgroundPrimary,
           borderRadius: 10,
-          padding: '16px 18px',
+          padding: '14px 16px',
           border: `1px solid ${T.colors.borderSubtle}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 16,
+          gap: 12,
         }}
       >
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button type="button" onClick={runLinter} disabled={loading} className="btn-primary">
-            {loading ? 'Revisando mapa...' : 'Revisar y corregir linderos en el mapa'}
-          </button>
-
-          <button type="button" onClick={exportTraces} className="btn-cacao">
-            Descargar expediente de origen ({parcel.parcelName || parcel.parcelId})
-          </button>
+        <div style={{ fontSize: '0.84rem', color: T.colors.textSecondary }}>
+          <strong>Resumen de parcela:</strong> {friendlyStatus.forestStatusLabel} ·{' '}
+          <strong>Papeles:</strong> {friendlyStatus.papersAreClear ? 'En regla' : 'Pendientes'} ·{' '}
+          <strong>Expediente:</strong>{' '}
+          <strong>{canExportOriginDossier ? 'Disponible' : 'Pendiente de revisión'}</strong>
         </div>
 
-        <div style={{ fontSize: '0.8125rem', color: T.colors.textSecondary }}>
-          <strong>Estado de la parcela:</strong>{' '}
-          <span
-            style={{
-              fontWeight: 700,
-              color:
-                friendlyStatus.forestStatusTone === 'verde'
-                  ? T.colors.statusGreen
-                  : friendlyStatus.forestStatusTone === 'revision'
-                    ? T.colors.statusWarning
-                    : T.colors.statusRed,
-            }}
-          >
-            {friendlyStatus.forestStatusLabel}
-          </span>{' '}
-          · Papeles:{' '}
-          <span
-            style={{
-              fontWeight: 700,
-              color: friendlyStatus.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
-            }}
-          >
-            {friendlyStatus.papersAreClear ? 'En regla' : 'Pendientes'}
-          </span>{' '}
-          · Expediente:{' '}
-          <strong>{canExportTraces ? 'Listo para descargar' : 'Por completar revisión'}</strong>
-        </div>
+        <button type="button" onClick={handleDownloadOriginFile} className="btn-cacao">
+          Descargar expediente de origen
+        </button>
       </div>
 
-      {exportMsg && (
+      {exportMsg ? (
         <div
           role="status"
           style={{
-            marginTop: 12,
-            padding: '12px 16px',
+            padding: '10px 14px',
             borderRadius: 8,
             backgroundColor: T.colors.statusGreenBg,
-            border: '2px solid #15803D',
+            border: '1.5px solid #15803D',
             color: T.colors.statusGreen,
             fontWeight: 700,
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
           }}
         >
           {exportMsg}
         </div>
-      )}
+      ) : null}
 
-      {error && (
+      {error ? (
         <div
           role="alert"
           style={{
-            marginTop: 12,
-            padding: '12px 16px',
+            padding: '10px 14px',
             borderRadius: 8,
             backgroundColor: T.colors.statusRedBg,
-            border: '2px solid #B91C1C',
+            border: '1.5px solid #B91C1C',
             color: T.colors.statusRed,
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
+            fontWeight: 700,
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>{error}</div>
-          <div style={{ fontSize: '0.8125rem' }}>
-            Acción sugerida: para descargar el expediente de origen, la parcela debe tener sus
-            revisión de monte al día y su constancia de terreno en regla.
-          </div>
+          {error}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

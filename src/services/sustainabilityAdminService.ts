@@ -4,6 +4,16 @@ export type EudrStatus = 'VERDE' | 'ROJO' | 'PENDIENTE_REVISION';
 export type NdviAlertLevel =
   'VIGOR_AGROFORESTAL_OPTIMO' | 'ESTRES_HIDRICO_TEMPRANO' | 'FOCO_PLAGA_FUNGICA_ALERTA';
 
+export interface HistoricalParcelSnapshot {
+  period_key: string;
+  label: string;
+  months_ago: number;
+  captured_date_iso: string;
+  extent_bbox: [number, number, number, number];
+  direct_ortho_url: string;
+  server_cached_image_path: string;
+}
+
 export interface ParcelAdminOverview {
   parcelId: string;
   parcelName?: string;
@@ -18,6 +28,8 @@ export interface ParcelAdminOverview {
   acahualRemovalPost2020: boolean;
   hasVerifiedCustfPermit: boolean;
   coordinates?: number[][];
+  extentBbox?: [number, number, number, number];
+  historicalSnapshots?: HistoricalParcelSnapshot[];
 }
 
 export interface CustfAdminAuditSummary {
