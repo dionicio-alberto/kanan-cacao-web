@@ -111,7 +111,7 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
               }}
             >
               <img
-                src="/brand/kanan-cacao-icon.svg"
+                src="/brand/kanan-cacao-icon.svg?v=2"
                 alt="Icono Kanan Cacao"
                 width={38}
                 height={38}

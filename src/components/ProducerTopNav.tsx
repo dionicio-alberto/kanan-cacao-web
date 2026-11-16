@@ -88,7 +88,7 @@ export default function ProducerTopNav({
               }}
             >
               <img
-                src="/brand/kanan-cacao-icon.svg"
+                src="/brand/kanan-cacao-icon.svg?v=2"
                 alt="Icono Kanan Cacao"
                 width={24}
                 height={24}
