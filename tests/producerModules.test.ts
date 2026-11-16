@@ -164,4 +164,18 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(getParcelDocumentDownloadUrl('PAR-TEST-5Y', 'doc-1')).toContain(
     '/api/v1/parcels/PAR-TEST-5Y/documents/doc-1/file',
   );
+
+  const { getNextTimelapsePeriodKey, getOrderedTimelapsePeriodKeys } =
+    await import('@/services/producerLogbookService');
+  const forwardOrder = getOrderedTimelapsePeriodKeys(snapshots, 'forward');
+  expect(forwardOrder[0]).toBe('hace_5_anios');
+  expect(forwardOrder[forwardOrder.length - 1]).toBe('registro_actual');
+  expect(getNextTimelapsePeriodKey(forwardOrder, 'hace_5_anios')).toBe('hace_4_anios');
+  expect(getNextTimelapsePeriodKey(forwardOrder, 'registro_actual')).toBe('hace_5_anios');
+
+  const backwardOrder = getOrderedTimelapsePeriodKeys(snapshots, 'backward');
+  expect(backwardOrder[0]).toBe('registro_actual');
+  expect(backwardOrder[backwardOrder.length - 1]).toBe('hace_5_anios');
+  expect(getNextTimelapsePeriodKey(backwardOrder, 'registro_actual')).toBe('hace_6_meses');
+  expect(getNextTimelapsePeriodKey(backwardOrder, 'hace_5_anios')).toBe('registro_actual');
 });

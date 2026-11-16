@@ -9,8 +9,11 @@ import {
   requestTracesNtExportLive,
 } from '@/services/geoEngineLiveClient';
 import {
+  getNextTimelapsePeriodKey,
+  getOrderedTimelapsePeriodKeys,
   getProducerFriendlyParcelStatus,
   latLngToScreenPoint,
+  TimelapseDirection,
 } from '@/services/producerLogbookService';
 import {
   evaluateCustfAdminCompliance,
@@ -77,6 +80,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
   const [overlayOpacityPct, setOverlayOpacityPct] = useState<number>(75);
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [autoPlaySeconds, setAutoPlaySeconds] = useState<number>(2);
+  const [autoPlayDirection, setAutoPlayDirection] = useState<TimelapseDirection>('forward');
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,24 +120,20 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     };
   }, [parcel.parcelId, parcel.historicalSnapshots, coordKey, defaultRegDate]);
 
-  // Orden cronológico (del pasado más lejano de 5 años hasta la fecha de registro) para Timelapse.
-  const chronologicalPeriods = useMemo(() => {
-    return [...snapshots].reverse().map((s) => s.period_key);
-  }, [snapshots]);
+  // Secuencia ordenada según la dirección elegida por el usuario (hacia adelante o hacia atrás).
+  const orderedPeriods = useMemo(() => {
+    return getOrderedTimelapsePeriodKeys(snapshots, autoPlayDirection);
+  }, [snapshots, autoPlayDirection]);
 
   useEffect(() => {
-    if (!isAutoPlaying || chronologicalPeriods.length === 0) {
+    if (!isAutoPlaying || orderedPeriods.length === 0) {
       return;
     }
     const timer = window.setInterval(() => {
-      setSelectedPeriodKey((currentKey) => {
-        const idx = chronologicalPeriods.indexOf(currentKey);
-        const nextIdx = idx === -1 ? 0 : (idx + 1) % chronologicalPeriods.length;
-        return chronologicalPeriods[nextIdx];
-      });
+      setSelectedPeriodKey((currentKey) => getNextTimelapsePeriodKey(orderedPeriods, currentKey));
     }, autoPlaySeconds * 1000);
     return () => window.clearInterval(timer);
-  }, [isAutoPlaying, autoPlaySeconds, chronologicalPeriods]);
+  }, [isAutoPlaying, autoPlaySeconds, orderedPeriods]);
 
   const handleChangeReferenceDate = async (nextDate: string) => {
     setReferenceDate(nextDate);
@@ -378,6 +378,23 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             <option value={2}>2 segundos</option>
             <option value={3}>3 segundos</option>
             <option value={5}>5 segundos</option>
+          </select>
+
+          <label
+            htmlFor="timelapse-direction-select"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+          >
+            Dirección:
+          </label>
+          <select
+            id="timelapse-direction-select"
+            value={autoPlayDirection}
+            onChange={(e) => setAutoPlayDirection(e.target.value as TimelapseDirection)}
+            className="field-input"
+            style={{ width: 'auto', marginTop: 0, padding: '4px 8px', fontSize: '0.8rem' }}
+          >
+            <option value="forward">Hacia adelante (Pasado → Registro)</option>
+            <option value="backward">Hacia atrás (Registro → Pasado)</option>
           </select>
         </div>
 
