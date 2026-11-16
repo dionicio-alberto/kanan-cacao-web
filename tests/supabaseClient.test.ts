@@ -69,3 +69,20 @@ describe('resolveRoleFromEmailOrProfile y helpers de Supabase Auth', () => {
     if (prevKey !== undefined) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prevKey;
   });
 });
+
+
+  it('retorna función unsubscribe segura en subscribeToSupabaseAuthChanges sin entorno configurado', async () => {
+    const prevUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const prevKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    jest.resetModules();
+
+    const { subscribeToSupabaseAuthChanges } = await import('@/services/supabaseClient');
+    const unsubscribe = subscribeToSupabaseAuthChanges(() => {});
+    expect(typeof unsubscribe).toBe('function');
+    unsubscribe();
+
+    if (prevUrl !== undefined) process.env.NEXT_PUBLIC_SUPABASE_URL = prevUrl;
+    if (prevKey !== undefined) process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = prevKey;
+  });

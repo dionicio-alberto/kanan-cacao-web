@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import SentinelSatelliteCard from '@/components/SentinelSatelliteCard';
 import {
   buildSatelliteOrthoExportUrl,
-  GEO_ENGINE_BASE_URL,
   PRESET_POLYGONS,
   PresetPolygonKey,
   projectCoordinatesToOrthoSvgPoints,
@@ -18,6 +17,19 @@ import {
   ParcelAdminOverview,
 } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
+import { getProducerFriendlyParcelStatus } from '@/services/producerLogbookService';
+
+const FRIENDLY_PRESET_LABELS: Record<PresetPolygonKey, { label: string; description: string }> = {
+  SELF_INTERSECTING_BOWTIE: {
+    label: 'Ejemplo: Terreno con líneas cruzadas',
+    description:
+      'Ejemplo práctico de cuando al caminar la parcela con el teléfono se cruzan los lados o falta cerrar la última esquina.',
+  },
+  CLEAN_COMALCALCO: {
+    label: 'Ejemplo: Parcela bien medida (> 4 ha)',
+    description: 'Ejemplo de un terreno medido en cuadro sin cruces en Comalcalco.',
+  },
+};
 
 const SVG_W = 420;
 const SVG_H = 240;
@@ -198,9 +210,10 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
   const usingPostgisParcel = geometryMode === 'PARCEL_POSTGIS' && hasParcelCoords;
   const activeCoordinates = usingPostgisParcel ? parcel.coordinates! : preset.coordinates;
   const activeGeometryLabel = usingPostgisParcel
-    ? `Polígono PostGIS en vivo (${parcel.parcelName || parcel.parcelId})`
-    : preset.label;
+    ? `Linderos guardados (${parcel.parcelName || parcel.parcelId})`
+    : FRIENDLY_PRESET_LABELS[presetKey].label;
 
+  const friendlyStatus = getProducerFriendlyParcelStatus(parcel);
   const custf = evaluateCustfAdminCompliance(parcel);
   const canExportTraces = parcel.eudrStatus === 'VERDE' && !custf.isProducerBlocked;
 
@@ -213,7 +226,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
     } catch (e) {
       setError(
         e instanceof Error
-          ? `${e.message}. Verifica que el servidor FastAPI esté activo en ${GEO_ENGINE_BASE_URL}.`
+          ? `${e.message}. Verifica la conexión con el servicio de mapas.`
           : String(e),
       );
     } finally {
@@ -239,13 +252,13 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `TRACES-NT_${parcel.parcelId}.json`;
+      a.download = `Expediente_Parcela_${parcel.parcelId}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setExportMsg(
-        `Paquete Due Diligence descargado para ${parcel.parcelId}. Huella SHA-256: ${String(
+        `Expediente de origen descargado para ${parcel.parcelName || parcel.parcelId}. Folio de seguridad: ${String(
           pkg.package_integrity_sha256,
-        ).slice(0, 20)}...`,
+        ).slice(0, 16)}...`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -261,7 +274,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         border: `1px solid ${T.colors.borderSubtle}`,
         borderRadius: 12,
         padding: '24px 22px',
-        marginTop: 28,
+        marginTop: 22,
       }}
     >
       <div
@@ -283,34 +296,32 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             fontSize: '1.35rem',
           }}
         >
-          3. Laboratorio cartográfico del linter topológico y conector TRACES NT
+          Mapa Satelital y Revisión de Linderos de tu Parcela
         </h2>
 
         <span
           style={{
             fontSize: '0.75rem',
             fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
             padding: '4px 10px',
-            borderRadius: 4,
+            borderRadius: 6,
             backgroundColor: T.colors.softGreenBg,
             color: T.colors.primaryGreen,
             border: `1px solid ${T.colors.primaryGreen}`,
           }}
         >
-          Motor FastAPI: {GEO_ENGINE_BASE_URL}
+          Servicio satelital conectado
         </span>
       </div>
 
       <p style={{ fontSize: '0.9rem', color: T.colors.textSecondary, marginTop: 0 }}>
-        Selecciona un trazo de campo y envíalo al motor Python para reparar auto-intersecciones,
-        forzar el cierre del anillo exterior según estándar GeoJSON RFC 7946 y comprobar que el
-        archivo sea menor a 25 MB:
+        Revisa los linderos de tu parcela sobre fotografía satelital real o prueba con un ejemplo
+        para asegurarte de que todas las esquinas del terreno cierren bien:
       </p>
 
       <div
         role="group"
-        aria-label="Seleccionar geometría y capa base satelital"
+        aria-label="Seleccionar linderos y vista satelital"
         style={{
           display: 'flex',
           gap: 10,
@@ -336,7 +347,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             opacity: hasParcelCoords ? 1 : 0.6,
           }}
         >
-          Polígono real PostGIS de parcela
+          Linderos registrados de mi parcela
         </button>
 
         {(Object.keys(PRESET_POLYGONS) as PresetPolygonKey[]).map((key) => {
@@ -360,7 +371,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 borderColor: isSelected ? T.colors.primaryGreen : T.colors.borderControl,
               }}
             >
-              {PRESET_POLYGONS[key].label}
+              {FRIENDLY_PRESET_LABELS[key].label}
             </button>
           );
         })}
@@ -377,9 +388,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             borderColor: showSatelliteBackdrop ? T.colors.earthCacao : T.colors.borderControl,
           }}
         >
-          {showSatelliteBackdrop
-            ? 'Ortofoto Satelital Real (Esri World Imagery)'
-            : 'Fondo Vectorial Oscuro'}
+          {showSatelliteBackdrop ? 'Viendo foto satelital real' : 'Viendo fondo oscuro'}
         </button>
       </div>
 
@@ -396,10 +405,10 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
           fontWeight: 600,
         }}
       >
-        Escenario activo:{' '}
+        Vista actual:{' '}
         {usingPostgisParcel
-          ? `Geometría georeferenciada desde Supabase PostGIS para ${parcel.parcelName || parcel.producerName} (${parcel.municipality}, ${parcel.areaHectares} ha).`
-          : preset.description}
+          ? `Mapa georreferenciado de ${parcel.parcelName || parcel.producerName} (${parcel.municipality}, ${parcel.areaHectares} hectáreas).`
+          : FRIENDLY_PRESET_LABELS[presetKey].description}
       </p>
 
       <div style={{ marginBottom: 18 }}>
@@ -412,9 +421,9 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
 
       <div className="dual-canvas-grid" style={{ marginBottom: 18 }}>
         <PolygonSvg
-          title="Antes: trazo GPS crudo de campo"
-          subtitle={`${activeCoordinates.length} vértices · ${activeGeometryLabel}`}
-          badgeText="Anillo crudo"
+          title="Linderos tomados en terreno"
+          subtitle={`${activeCoordinates.length} puntos del recorrido · ${activeGeometryLabel}`}
+          badgeText="Trazo tomado"
           badgeBg={T.colors.statusRedBg}
           badgeColor={T.colors.statusRed}
           badgeBorder="#B91C1C"
@@ -442,20 +451,20 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontWeight: 700, fontSize: '1rem', color: T.colors.primaryGreen }}>
-              Ejecutando validación topológica en Geo-Engine...
+              Revisando linderos y midiendo superficie...
             </div>
             <p style={{ fontSize: '0.85rem', color: T.colors.textSecondary, marginTop: 8 }}>
-              Verificando cierre de anillo RFC 7946, eliminación de cruces y cálculo geodésico de
-              hectáreas.
+              Comprobando que las esquinas cierren bien, no haya líneas cruzadas y calculando las
+              hectáreas exactas.
             </p>
           </div>
         )}
 
         {!loading && report && (
           <PolygonSvg
-            title="Después: geometría reparada (RFC 7946)"
-            subtitle={`Superficie geodésica: ${report.area_hectares} ha · ${report.vertex_count} vértices · ${report.byte_size} bytes`}
-            badgeText="Topología válida EUDR"
+            title="Linderos corregidos y cerrados"
+            subtitle={`Superficie medida: ${report.area_hectares} hectáreas · ${report.vertex_count} esquinas`}
+            badgeText="Linderos en regla"
             badgeBg={T.colors.statusGreenBg}
             badgeColor={T.colors.statusGreen}
             badgeBorder="#15803D"
@@ -484,7 +493,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontWeight: 700, fontSize: '1rem', color: T.colors.primaryGreen }}>
-              Sin ejecución del linter para el trazo actual
+              Aún no se revisan estos linderos
             </div>
             <p
               style={{
@@ -494,9 +503,8 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 margin: '8px 0 0',
               }}
             >
-              Pulsa el botón <strong>Ejecutar linter topológico en Geo-Engine</strong> debajo de
-              este panel para procesar las coordenadas en el servidor y comparar el polígono
-              reparado.
+              Pulsa el botón <strong>Revisar y corregir linderos en el mapa</strong> aquí abajo para
+              comprobar el tamaño y cierre de la parcela.
             </p>
           </div>
         )}
@@ -513,10 +521,10 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Estado topológico
+              Estado del mapa
             </div>
             <div style={{ fontWeight: 700, color: T.colors.statusGreen, fontSize: '0.9rem' }}>
-              {report.is_topology_valid ? 'Válido RFC 7946' : 'Inválido'}
+              {report.is_topology_valid ? 'Cerrado y sin cruces' : 'Con errores'}
             </div>
           </div>
 
@@ -529,10 +537,10 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Cierre de anillo exterior
+              Cierre de esquinas
             </div>
             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-              {report.was_ring_auto_closed ? 'Cerrado automáticamente' : 'Cerrado de origen'}
+              {report.was_ring_auto_closed ? 'Cerrado automáticamente' : 'Cerrado desde campo'}
             </div>
           </div>
 
@@ -545,11 +553,11 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Auto-intersección
+              Líneas cruzadas
             </div>
             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
               {report.was_self_intersection_repaired
-                ? 'Reparada por envolvente'
+                ? 'Corregido en el mapa'
                 : 'Sin cruces detectados'}
             </div>
           </div>
@@ -563,7 +571,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Superficie y peso GeoJSON
+              Superficie medida
             </div>
             <div
               style={{
@@ -573,7 +581,7 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              {report.area_hectares} ha · {report.byte_size} bytes
+              {report.area_hectares} hectáreas
             </div>
           </div>
 
@@ -586,12 +594,12 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
             }}
           >
             <div style={{ fontSize: '0.75rem', color: T.colors.textSecondary }}>
-              Regla EUDR ({'>'} 4.0 ha)
+              Requisito por tamaño ({'>'} 4 ha)
             </div>
             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
               {report.requires_mandatory_polygon_eudr
-                ? 'Polígono obligatorio'
-                : 'Minifundio menor o igual a 4 ha'}
+                ? 'Requiere mapa completo'
+                : 'Parcela pequeña (menor o igual a 4 ha)'}
             </div>
           </div>
         </div>
@@ -612,35 +620,40 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
       >
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button type="button" onClick={runLinter} disabled={loading} className="btn-primary">
-            {loading ? 'Validando geometría...' : 'Ejecutar linter topológico en Geo-Engine'}
+            {loading ? 'Revisando mapa...' : 'Revisar y corregir linderos en el mapa'}
           </button>
 
           <button type="button" onClick={exportTraces} className="btn-cacao">
-            Descargar paquete aduanal TRACES NT ({parcel.parcelId})
+            Descargar expediente de origen ({parcel.parcelName || parcel.parcelId})
           </button>
         </div>
 
         <div style={{ fontSize: '0.8125rem', color: T.colors.textSecondary }}>
-          <strong>Compuerta aduanal ({parcel.parcelId}):</strong> EUDR{' '}
+          <strong>Estado de la parcela:</strong>{' '}
           <span
             style={{
               fontWeight: 700,
-              color: parcel.eudrStatus === 'VERDE' ? T.colors.statusGreen : T.colors.statusRed,
+              color:
+                friendlyStatus.forestStatusTone === 'verde'
+                  ? T.colors.statusGreen
+                  : friendlyStatus.forestStatusTone === 'revision'
+                    ? T.colors.statusWarning
+                    : T.colors.statusRed,
             }}
           >
-            {parcel.eudrStatus}
+            {friendlyStatus.forestStatusLabel}
           </span>{' '}
-          · CUSTF{' '}
+          · Papeles:{' '}
           <span
             style={{
               fontWeight: 700,
-              color: custf.isProducerBlocked ? T.colors.statusRed : T.colors.statusGreen,
+              color: friendlyStatus.papersAreClear ? T.colors.statusGreen : T.colors.statusRed,
             }}
           >
-            {custf.isProducerBlocked ? 'Bloqueado' : 'En regla'}
+            {friendlyStatus.papersAreClear ? 'En regla' : 'Pendientes'}
           </span>{' '}
-          · Dictamen de exportación:{' '}
-          <strong>{canExportTraces ? 'Autorizada' : 'Rechazo preventivo'}</strong>
+          · Expediente:{' '}
+          <strong>{canExportTraces ? 'Listo para descargar' : 'Por completar revisión'}</strong>
         </div>
       </div>
 
@@ -677,8 +690,8 @@ export default function LiveGeoEnginePanel({ parcel }: { parcel: ParcelAdminOver
         >
           <div style={{ fontWeight: 700, marginBottom: 4 }}>{error}</div>
           <div style={{ fontSize: '0.8125rem' }}>
-            Acción sugerida: para exportar a TRACES NT, la parcela debe tener estatus EUDR VERDE y
-            no estar bloqueada por permiso CUSTF de SEMARNAT.
+            Acción sugerida: para descargar el expediente de origen, la parcela debe tener sus
+            revisión de monte al día y su constancia de terreno en regla.
           </div>
         </div>
       )}

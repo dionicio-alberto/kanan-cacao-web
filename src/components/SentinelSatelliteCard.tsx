@@ -89,7 +89,7 @@ export default function SentinelSatelliteCard({
               color: T.colors.primaryGreen,
             }}
           >
-            Telemetría Satelital Sentinel-2 L2A en Vivo (Copernicus STAC)
+            Vista Satelital Reciente de tu Parcela
           </h4>
           <p
             style={{
@@ -118,7 +118,7 @@ export default function SentinelSatelliteCard({
                 border: `1px solid ${isLiveStac ? '#15803D' : '#B45309'}`,
               }}
             >
-              {isLiveStac ? 'STAC EN VIVO (Earth Search)' : 'CACHÉ STAC DE RESPALDO'}
+              {isLiveStac ? 'Imagen satelital en vivo' : 'Vista de respaldo'}
             </span>
           ) : null}
 
@@ -129,7 +129,7 @@ export default function SentinelSatelliteCard({
             onClick={() => void loadScene()}
             style={{ fontSize: '0.8rem', padding: '6px 10px' }}
           >
-            {loading ? 'Consultando STAC...' : 'Actualizar escena Sentinel-2'}
+            {loading ? 'Buscando fotografía...' : 'Actualizar foto satelital'}
           </button>
         </div>
       </div>
@@ -161,24 +161,22 @@ export default function SentinelSatelliteCard({
         >
           <div style={{ display: 'grid', gap: 6, fontSize: '0.82rem' }}>
             <div>
-              <span style={{ color: T.colors.textSecondary }}>Escena más reciente: </span>
+              <span style={{ color: T.colors.textSecondary }}>Toma satelital reciente: </span>
               <code style={{ fontWeight: 700, color: T.colors.textPrimary }}>
                 {scene.latest_scene_id}
               </code>
             </div>
             <div>
-              <span style={{ color: T.colors.textSecondary }}>Captura UTC: </span>
-              <strong>{scene.captured_at_iso}</strong>
+              <span style={{ color: T.colors.textSecondary }}>Fecha de la fotografía: </span>
+              <strong>{scene.captured_at_iso.slice(0, 10)}</strong>
             </div>
             <div>
-              <span style={{ color: T.colors.textSecondary }}>Nubosidad / Tile MGRS: </span>
-              <strong>
-                {scene.cloud_cover_pct}% · {scene.mgrs_tile} ({scene.platform})
-              </strong>
+              <span style={{ color: T.colors.textSecondary }}>Nubosidad en la zona: </span>
+              <strong>{scene.cloud_cover_pct}% de nubes</strong>
             </div>
             <div>
-              <span style={{ color: T.colors.textSecondary }}>Superficie geodésica STAC: </span>
-              <strong>{scene.area_hectares} ha</strong>
+              <span style={{ color: T.colors.textSecondary }}>Superficie medida desde arriba: </span>
+              <strong>{scene.area_hectares} hectáreas</strong>
             </div>
 
             {scene.stac_item_url ? (
@@ -194,7 +192,7 @@ export default function SentinelSatelliteCard({
                     textDecoration: 'underline',
                   }}
                 >
-                  Inspeccionar ítem STAC GeoJSON en Element84 Copernicus ↗
+                  Ver detalle de la toma satelital ↗
                 </a>
               </div>
             ) : null}
@@ -211,7 +209,7 @@ export default function SentinelSatelliteCard({
             >
               <img
                 src={scene.sentinel_preview_url}
-                alt={`Vista rápida Sentinel-2 ${scene.latest_scene_id}`}
+                alt={`Fotografía satelital reciente de ${parcel.parcelName || parcel.producerName}`}
                 width={150}
                 height={100}
                 style={{
@@ -226,7 +224,7 @@ export default function SentinelSatelliteCard({
         </div>
       ) : loading ? (
         <p style={{ margin: 0, fontSize: '0.82rem', color: T.colors.textSecondary }}>
-          Buscando pasadas ópticas Sentinel-2 L2A sobre Tabasco...
+          Buscando la fotografía satelital más despejada sobre tu parcela...
         </p>
       ) : null}
     </section>

@@ -129,8 +129,18 @@ export async function getActiveSupabaseSession(): Promise<AuthenticatedOperatorP
   }
 
   const { data, error } = await client.auth.getSession();
-  if (error || !data.session || !data.session.user) {
+  if (error || !data.session || !data.session.user || !data.session.access_token) {
     return null;
+  }
+
+  // Verifica contra el servidor de Auth que el token no haya sido revocado ni expirado.
+  if (typeof client.auth.getUser === 'function') {
+    const { data: userCheck, error: userError } = await client.auth.getUser(
+      data.session.access_token
+    );
+    if (userError || !userCheck?.user) {
+      return null;
+    }
   }
 
   return hydrateOperatorProfile(
@@ -139,6 +149,23 @@ export async function getActiveSupabaseSession(): Promise<AuthenticatedOperatorP
     data.session.user.email || '',
     data.session.access_token
   );
+}
+
+export function subscribeToSupabaseAuthChanges(onSignedOut: () => void): () => void {
+  const client = getSupabaseClient();
+  if (!client || typeof client.auth.onAuthStateChange !== 'function') {
+    return () => {};
+  }
+
+  const { data } = client.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session) {
+      onSignedOut();
+    }
+  });
+
+  return () => {
+    data?.subscription?.unsubscribe();
+  };
 }
 
 export async function signOutSupabaseSession(): Promise<void> {
