@@ -653,8 +653,10 @@ export default function LiveGeoEnginePanel({
               </strong>
               <div style={{ fontSize: '0.8rem', color: T.colors.textSecondary }}>
                 Fecha exacta en que el satélite tomó esta fotografía:{' '}
-                <strong>{formatDisplayDateEs(activeSnapshot.captured_date_iso)}</strong> · Cielo
-                despejado verificado
+                <strong>{formatDisplayDateEs(activeSnapshot.captured_date_iso)}</strong> ·{' '}
+                {activeSnapshot.cloud_fallback_least_cloudy
+                  ? 'Menor nubosidad disponible (20 intentos)'
+                  : 'Cielo despejado verificado'}
                 {activeSnapshot.resolution_label
                   ? ` · ${activeSnapshot.resolution_label}`
                   : ' · Alta resolución verificada'}
