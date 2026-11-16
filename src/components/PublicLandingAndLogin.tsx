@@ -98,19 +98,30 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
               style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: 10,
-                padding: '4px 6px',
+                width: 46,
+                height: 46,
+                padding: 4,
+                boxSizing: 'border-box',
+                aspectRatio: '1 / 1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 6px rgba(0, 0, 0, 0.14)',
+                flexShrink: 0,
               }}
             >
               <img
-                src="/brand/kanan-cacao-logo.png"
-                alt="Logo Kanan Cacao"
-                width={42}
-                height={42}
-                style={{ display: 'block', objectFit: 'contain' }}
+                src="/brand/kanan-cacao-icon.svg"
+                alt="Icono Kanan Cacao"
+                width={38}
+                height={38}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  aspectRatio: '1 / 1',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
               />
             </div>
             <div>
@@ -168,9 +179,12 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
               <img
                 src="/brand/kanan-cacao-logo.svg"
                 alt="Emblema oficial Kanan Cacao"
-                width={84}
-                height={84}
+                width={88}
+                height={88}
                 style={{
+                  width: 88,
+                  height: 88,
+                  aspectRatio: '1 / 1',
                   borderRadius: 12,
                   backgroundColor: '#FFFFFF',
                   border: `1px solid ${T.colors.borderSubtle}`,

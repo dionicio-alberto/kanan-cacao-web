@@ -7,8 +7,8 @@ export const metadata = {
   description:
     'Mapa satelital de parcelas de cacao, bitácora diaria con fotos, registro de cosecha en mesa de acopio y bonos de carbono comunitarios en Tabasco.',
   icons: {
-    icon: '/brand/kanan-cacao-logo.svg',
-    apple: '/brand/kanan-cacao-logo.png',
+    icon: '/brand/kanan-cacao-icon.svg',
+    apple: '/brand/kanan-cacao-icon.svg',
   },
 };
 
