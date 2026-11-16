@@ -383,6 +383,7 @@ export default function ParcelsAndGeorefModule({
                   id="new-parcel-name"
                   type="text"
                   required
+                  disabled={savingGeoref}
                   value={parcelName}
                   onChange={(e) => setParcelName(e.target.value)}
                   placeholder="Ej. Finca El Cedral"
@@ -401,6 +402,7 @@ export default function ParcelsAndGeorefModule({
                   id="new-producer-name"
                   type="text"
                   required
+                  disabled={savingGeoref}
                   value={producerName}
                   onChange={(e) => setProducerName(e.target.value)}
                   placeholder="Ej. Don Roberto López"
@@ -417,6 +419,7 @@ export default function ParcelsAndGeorefModule({
                 </label>
                 <select
                   id="new-parcel-municipality"
+                  disabled={savingGeoref}
                   value={municipality}
                   onChange={(e) => setMunicipality(e.target.value)}
                   className="field-input"
@@ -442,6 +445,7 @@ export default function ParcelsAndGeorefModule({
                   step="any"
                   min="0.01"
                   required
+                  disabled={savingGeoref}
                   readOnly={captureMethod === 'MAPA_INTERACTIVO'}
                   value={areaHectares}
                   onChange={(e) => setAreaHectares(e.target.value)}
@@ -465,6 +469,7 @@ export default function ParcelsAndGeorefModule({
               <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Método de marcado:</span>
               <button
                 type="button"
+                disabled={savingGeoref}
                 onClick={() => setCaptureMethod('MAPA_INTERACTIVO')}
                 className="btn-control"
                 style={{
@@ -479,6 +484,7 @@ export default function ParcelsAndGeorefModule({
               </button>
               <button
                 type="button"
+                disabled={savingGeoref}
                 onClick={() => setCaptureMethod('CENTRO_GPS')}
                 className="btn-control"
                 style={{
@@ -491,6 +497,7 @@ export default function ParcelsAndGeorefModule({
               </button>
               <button
                 type="button"
+                disabled={savingGeoref}
                 onClick={() => setCaptureMethod('ESQUINAS')}
                 className="btn-control"
                 style={{
@@ -531,6 +538,7 @@ export default function ParcelsAndGeorefModule({
                     <input
                       id="new-center-lat"
                       type="text"
+                      disabled={savingGeoref}
                       value={centerLat}
                       onChange={(e) => setCenterLat(e.target.value)}
                       className="field-input"
@@ -546,6 +554,7 @@ export default function ParcelsAndGeorefModule({
                     <input
                       id="new-center-lng"
                       type="text"
+                      disabled={savingGeoref}
                       value={centerLng}
                       onChange={(e) => setCenterLng(e.target.value)}
                       className="field-input"
@@ -556,6 +565,7 @@ export default function ParcelsAndGeorefModule({
                   <button
                     type="button"
                     className="btn-control"
+                    disabled={savingGeoref}
                     onClick={handleUseBrowserGps}
                     style={{ fontSize: '0.82rem' }}
                   >
@@ -579,6 +589,7 @@ export default function ParcelsAndGeorefModule({
                 <textarea
                   id="new-custom-coords"
                   rows={4}
+                  disabled={savingGeoref}
                   value={customCoordsText}
                   onChange={(e) => setCustomCoordsText(e.target.value)}
                   className="field-input"
@@ -586,6 +597,69 @@ export default function ParcelsAndGeorefModule({
                 />
               </div>
             )}
+
+            {savingGeoref ? (
+              <div
+                role="status"
+                aria-live="polite"
+                style={{
+                  backgroundColor: T.colors.softGreenBg,
+                  border: `1.5px solid ${T.colors.primaryGreen}`,
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  display: 'grid',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      border: `3px solid ${T.colors.borderSubtle}`,
+                      borderTopColor: T.colors.primaryGreen,
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div>
+                    <strong
+                      style={{
+                        fontSize: '0.92rem',
+                        color: T.colors.primaryGreen,
+                        display: 'block',
+                      }}
+                    >
+                      Guardando georreferencia en servidor...
+                    </strong>
+                    <span style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
+                      Sincronizando coordenadas del polígono, consultando satélites y generando la
+                      ficha histórica. Por favor espera un momento sin cerrar esta pantalla.
+                    </span>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    width: '100%',
+                    height: 6,
+                    backgroundColor: 'rgba(20, 69, 38, 0.15)',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '60%',
+                      height: '100%',
+                      backgroundColor: T.colors.primaryGreen,
+                      borderRadius: 3,
+                      animation: 'pulse 1.2s ease-in-out infinite',
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button
@@ -596,10 +670,25 @@ export default function ParcelsAndGeorefModule({
               >
                 Cancelar
               </button>
-              <button type="submit" className="btn-primary" disabled={savingGeoref}>
-                {savingGeoref
-                  ? 'Guardando georreferencia y fotos en servidor...'
-                  : 'Guardar nueva parcela'}
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={savingGeoref}
+                aria-busy={savingGeoref}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                {savingGeoref ? (
+                  <>
+                    <span className="spinner" aria-hidden="true" />
+                    <span>Guardando georreferencia...</span>
+                  </>
+                ) : (
+                  <span>Guardar nueva parcela</span>
+                )}
               </button>
             </div>
           </form>

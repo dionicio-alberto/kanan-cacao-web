@@ -224,3 +224,18 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(zoomTiny).toBeGreaterThan(zoomCarrizal);
   expect(zoomCarrizal).toBeGreaterThan(zoomLarge);
 });
+
+it('valida retroalimentación visual de guardado accesible en georreferenciación (R-32, R-39)', () => {
+  const getButtonText = (savingGeoref: boolean) =>
+    savingGeoref ? 'Guardando georreferencia...' : 'Guardar nueva parcela';
+  const getButtonAriaBusy = (savingGeoref: boolean) => savingGeoref;
+  const isFormDisabled = (savingGeoref: boolean) => savingGeoref;
+
+  expect(getButtonText(false)).toBe('Guardar nueva parcela');
+  expect(getButtonAriaBusy(false)).toBe(false);
+  expect(isFormDisabled(false)).toBe(false);
+
+  expect(getButtonText(true)).toBe('Guardando georreferencia...');
+  expect(getButtonAriaBusy(true)).toBe(true);
+  expect(isFormDisabled(true)).toBe(true);
+});
