@@ -29,9 +29,9 @@ export function resolveRoleFromEmailOrProfile(
   profileRole?: string | null,
 ): WebUserRole {
   const normalizedRole = (profileRole || '').trim().toLowerCase();
-  if (normalizedRole === 'admin_astra') return 'admin_astra';
-  if (normalizedRole === 'auditor_sustentabilidad') return 'auditor_sustentabilidad';
-  if (normalizedRole === 'acopiador') return 'acopiador';
+  if (normalizedRole) {
+    return normalizedRole as WebUserRole;
+  }
 
   const normalizedEmail = (email || '').trim().toLowerCase();
   if (normalizedEmail === 'admin@cacao-astra.org' || normalizedEmail.startsWith('admin@')) {
@@ -40,7 +40,13 @@ export function resolveRoleFromEmailOrProfile(
   if (normalizedEmail === 'auditor.eudr@cacao-astra.org' || normalizedEmail.includes('auditor')) {
     return 'auditor_sustentabilidad';
   }
-  return 'acopiador';
+  if (normalizedEmail.includes('tecnico')) {
+    return 'tecnico_campo';
+  }
+  if (normalizedEmail.includes('acopio')) {
+    return 'acopiador';
+  }
+  return 'productor';
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
@@ -78,12 +84,37 @@ async function hydrateOperatorProfile(
 
   const fullNameRaw = typeof data?.full_name === 'string' ? data.full_name.trim() : '';
   const roleRaw = typeof data?.role === 'string' ? data.role : null;
+  let effectiveRole = resolveRoleFromEmailOrProfile(email, roleRaw);
+
+  const geoBase = (
+    process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ||
+    process.env.NEXT_PUBLIC_GEO_ENGINE_URL ||
+    ''
+  )
+    .trim()
+    .replace(/\/$/, '');
+  if (geoBase && geoBase.startsWith('http')) {
+    try {
+      const roleRes = await fetch(
+        `${geoBase}/api/v1/admin/profile-role/${encodeURIComponent(userId)}?base_role=${encodeURIComponent(String(effectiveRole))}`,
+        { method: 'GET', headers: { Accept: 'application/json' } },
+      );
+      if (roleRes.ok) {
+        const body = (await roleRes.json()) as { role_key?: string };
+        if (body.role_key) {
+          effectiveRole = body.role_key as WebUserRole;
+        }
+      }
+    } catch {
+      // Mantiene el rol base desde Supabase si el microservicio remoto no está disponible.
+    }
+  }
 
   return {
     userId,
     email,
     fullName: fullNameRaw || email.split('@')[0] || 'Operador ASTRA',
-    role: resolveRoleFromEmailOrProfile(email, roleRaw),
+    role: effectiveRole,
     accessToken,
   };
 }

@@ -6,6 +6,10 @@ export const metadata = {
   title: 'Kanan Cacao · Portal del Productor y Acopio en Tabasco',
   description:
     'Mapa satelital de parcelas de cacao, bitácora diaria con fotos, registro de cosecha en mesa de acopio y bonos de carbono comunitarios en Tabasco.',
+  icons: {
+    icon: '/brand/kanan-cacao-logo.svg',
+    apple: '/brand/kanan-cacao-logo.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

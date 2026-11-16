@@ -49,17 +49,15 @@ const DEFAULT_WAYBACK_BY_PERIOD: Record<string, string> = {
 };
 
 function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boolean {
-  if (!Array.isArray(snaps) || snaps.length < 5 || snaps.length > 7) {
+  if (!Array.isArray(snaps) || snaps.length !== 7) {
     return false;
   }
   const releases = new Set(snaps.map((item) => item.wayback_release).filter(Boolean));
   const dates = new Set(snaps.map((item) => item.captured_date_iso).filter(Boolean));
   return (
-    releases.size === snaps.length &&
-    dates.size === snaps.length &&
-    snaps.every(
-      (item) => item.capture_source === 'real_src_date' && item.high_res_verified !== false,
-    )
+    releases.size === 7 &&
+    dates.size === 7 &&
+    snaps.every((item) => item.capture_source === 'real_src_date')
   );
 }
 
@@ -69,7 +67,7 @@ export default function LiveGeoEnginePanel({
   onParcelUpdated,
 }: {
   parcel: ParcelAdminOverview;
-  operatorProfile?: { fullName: string; role: string } | null;
+  operatorProfile?: { fullName: string; role: string; accessToken?: string } | null;
   onParcelUpdated?: (updated: ParcelAdminOverview) => void;
 }) {
   const activeCoordinates =
@@ -188,6 +186,7 @@ export default function LiveGeoEnginePanel({
         confirmationWord: confirmWordInput.trim(),
         changedBy: operatorProfile?.fullName || 'Administrador ASTRA',
         changedByRole: operatorProfile?.role || '',
+        accessToken: operatorProfile?.accessToken,
       });
       const updatedDate = updated.registeredAtIso?.slice(0, 10) || pendingRegDate;
       setReferenceDate(updatedDate);
@@ -225,6 +224,7 @@ export default function LiveGeoEnginePanel({
     () => computeCenteredWaybackViewport(JSON.parse(coordKey) as number[][], VIEW_W, VIEW_H),
     [coordKey],
   );
+  const activeRenderZoom = activeSnapshot?.render_zoom ?? zoom;
 
   const waybackTiles = useMemo(
     () =>
@@ -240,7 +240,7 @@ export default function LiveGeoEnginePanel({
   );
 
   const polygonPoints = activeCoordinates.map(([lng, lat]) =>
-    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, zoom),
+    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, activeRenderZoom),
   );
   const polygonSvgStr = polygonPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');
 
@@ -352,17 +352,7 @@ export default function LiveGeoEnginePanel({
               >
                 {isRegDateModalOpen ? 'Cerrar' : 'Modificar fecha (Admin)'}
               </button>
-            ) : (
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  color: T.colors.textSecondary,
-                  fontWeight: 600,
-                }}
-              >
-                Solo lectura (Admin)
-              </span>
-            )}
+            ) : null}
           </div>
 
           <span

@@ -93,10 +93,26 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
             gap: 12,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span aria-hidden="true" style={{ fontSize: '1.35rem' }}>
-              🌿
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 10,
+                padding: '4px 6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.14)',
+              }}
+            >
+              <img
+                src="/brand/kanan-cacao-logo.png"
+                alt="Logo Kanan Cacao"
+                width={42}
+                height={42}
+                style={{ display: 'block', objectFit: 'contain' }}
+              />
+            </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.02em' }}>
                 Kanan Cacao
@@ -148,21 +164,35 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
               gap: 14,
             }}
           >
-            <span
-              style={{
-                justifySelf: 'start',
-                fontSize: '0.76rem',
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                color: T.colors.primaryGreen,
-                backgroundColor: T.colors.softGreenBg,
-                padding: '4px 12px',
-                borderRadius: 999,
-                border: `1px solid ${T.colors.secondaryGreen}`,
-              }}
-            >
-              DEL CACAOTAL AL CENTRO DE ACOPIO
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <img
+                src="/brand/kanan-cacao-logo.svg"
+                alt="Emblema oficial Kanan Cacao"
+                width={84}
+                height={84}
+                style={{
+                  borderRadius: 12,
+                  backgroundColor: '#FFFFFF',
+                  border: `1px solid ${T.colors.borderSubtle}`,
+                  objectFit: 'contain',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  color: T.colors.primaryGreen,
+                  backgroundColor: T.colors.softGreenBg,
+                  padding: '4px 12px',
+                  borderRadius: 999,
+                  border: `1px solid ${T.colors.secondaryGreen}`,
+                }}
+              >
+                DEL CACAOTAL AL CENTRO DE ACOPIO
+              </span>
+            </div>
 
             <h1
               id="landing-hero-title"

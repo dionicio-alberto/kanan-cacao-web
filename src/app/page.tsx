@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import AdminRoleControlModule from '@/components/modules/AdminRoleControlModule';
 import CarbonBonusModule from '@/components/modules/CarbonBonusModule';
 import DashboardHomeModule from '@/components/modules/DashboardHomeModule';
 import FieldLogbookModule from '@/components/modules/FieldLogbookModule';
@@ -327,6 +328,10 @@ export default function KananCacaoPortalPage() {
         ) : null}
 
         {activeSection === 'carbono' ? <CarbonBonusModule parcels={parcels} /> : null}
+
+        {activeSection === 'admin_panel' && operatorProfile.role === 'admin_astra' ? (
+          <AdminRoleControlModule operatorProfile={operatorProfile} />
+        ) : null}
       </main>
 
       <footer
