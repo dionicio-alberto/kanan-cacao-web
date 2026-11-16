@@ -87,7 +87,7 @@ export default function InteractiveParcelMapPicker({
         const baseUrl =
           mapLayer === 'satellite'
             ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
-            : `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${zoom}/${ty}/${tx}`;
+            : `https://basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}@2x.png`;
 
         const overlayUrl =
           mapLayer === 'satellite'
@@ -112,7 +112,7 @@ export default function InteractiveParcelMapPicker({
     setVertices(nextVertices);
     if (nextVertices.length >= 3) {
       const closed = [...nextVertices, nextVertices[0]];
-      const ha = estimatePolygonHectares(closed);
+      const ha = Number(estimatePolygonHectares(closed).toFixed(2));
       onPolygonChange(closed, ha);
     } else {
       onPolygonChange(nextVertices, 0);
@@ -220,18 +220,19 @@ export default function InteractiveParcelMapPicker({
       const repairedRing = report.polygon.coordinates[0];
       const openCorners =
         repairedRing.length > 1 ? repairedRing.slice(0, repairedRing.length - 1) : repairedRing;
+      const roundedHa = Number(Number(report.area_hectares).toFixed(2));
       setVertices(openCorners);
-      onPolygonChange(repairedRing, report.area_hectares);
+      onPolygonChange(repairedRing, roundedHa);
       setLintNotice(
         report.was_self_intersection_repaired
-          ? `Linderos corregidos y cerrados automáticamente (${report.area_hectares} hectáreas medidas).`
-          : `Linderos cerrados correctamente (${report.area_hectares} hectáreas medidas).`
+          ? `Linderos corregidos y cerrados automáticamente (${roundedHa.toFixed(2)} hectáreas medidas).`
+          : `Linderos cerrados correctamente (${roundedHa.toFixed(2)} hectáreas medidas).`
       );
     } catch {
       const closed = [...vertices, vertices[0]];
-      const ha = estimatePolygonHectares(closed);
+      const ha = Number(estimatePolygonHectares(closed).toFixed(2));
       onPolygonChange(closed, ha);
-      setLintNotice(`Lindero cerrado localmente (${ha} hectáreas aproximadas).`);
+      setLintNotice(`Lindero cerrado localmente (${ha.toFixed(2)} hectáreas aproximadas).`);
     } finally {
       setRepairing(false);
     }
