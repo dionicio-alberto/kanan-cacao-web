@@ -351,14 +351,14 @@ export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
   {
     release: '4383',
     captureDate: '2022-11-21',
-    sensor: 'GeoEye-1 / Maxar',
+    sensor: 'Maxar GeoEye-1',
     resolution: '0.45m HD',
     visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
   },
   {
     release: '15212',
     captureDate: '2020-12-16',
-    sensor: 'Sentinel-2 L2A / JRC Baseline',
+    sensor: 'Maxar WorldView / Línea Base EUDR',
     resolution: '0.50m HD',
     isEudrBaseline: true,
     visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
