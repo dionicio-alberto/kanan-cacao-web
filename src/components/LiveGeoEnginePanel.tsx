@@ -733,7 +733,7 @@ export default function LiveGeoEnginePanel({
                   fontWeight: 800,
                 }}
               >
-                🛰️ Metadata Oficial del Satélite · Maxar WorldView-3
+                🛰️ Metadata Satelital Oficial de la Imagen
               </span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <span
@@ -747,8 +747,8 @@ export default function LiveGeoEnginePanel({
                     border: '1px solid #86EFAC',
                   }}
                 >
-                  Wayback Release: M=
-                  {currentDynamicSpec?.wayback_release || activeSnapshot.wayback_release}
+                  Satélite:{' '}
+                  {currentDynamicSpec?.sensor || activeSnapshot.sensor || 'Maxar WorldView'}
                 </span>
                 <span
                   style={{
@@ -761,7 +761,7 @@ export default function LiveGeoEnginePanel({
                     border: '1px solid #86EFAC',
                   }}
                 >
-                  Resolución: 0.30m Super-HD
+                  Resolución: {currentDynamicSpec?.resolution || '0.30m - 0.60m Super-HD'}
                 </span>
               </div>
             </div>
@@ -784,17 +784,17 @@ export default function LiveGeoEnginePanel({
               </div>
               <div>
                 <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
-                  Horizonte y resta matemática:
+                  Horizonte solicitado:
                 </span>
                 <strong style={{ color: '#111827' }}>
                   {currentDynamicSpec
-                    ? `${currentDynamicSpec.years_ago} años atrás (Año ${currentDynamicSpec.target_year})`
+                    ? `${currentDynamicSpec.years_ago} años atrás (Año objetivo ${currentDynamicSpec.target_year})`
                     : 'Registro actual'}
                 </strong>
               </div>
               <div>
                 <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
-                  Fecha exacta captura satélite:
+                  Fecha real captura satélite:
                 </span>
                 <strong style={{ color: '#15803D' }}>
                   {formatDisplayDateEs(
@@ -804,10 +804,14 @@ export default function LiveGeoEnginePanel({
               </div>
               <div>
                 <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
-                  Margen anual verificado:
+                  Año satelital verificado:
                 </span>
                 <strong style={{ color: '#15803D' }}>
-                  ✓ {currentDynamicSpec?.margin_label || 'Dentro de margen permitido'}
+                  ✓ Año{' '}
+                  {currentDynamicSpec?.captured_year || activeSnapshot.captured_year || 'Real'}
+                  {currentDynamicSpec?.is_exact_year
+                    ? ' (Coincidente con horizonte)'
+                    : ' (Dentro de margen)'}
                 </strong>
               </div>
             </div>
