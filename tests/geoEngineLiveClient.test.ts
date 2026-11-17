@@ -66,4 +66,51 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     expect(svgPts[0].y).toBeGreaterThan(0);
     expect(svgPts[0].y).toBeLessThan(240);
   });
+
+  it('genera mosaico 6x5 con proyección y nitidez HD idéntica a cacao-track', async () => {
+    const { computeCacaoTrackTileGrid, buildWaybackTileUrl } =
+      await import('@/services/geoEngineLiveClient');
+    const coords = [
+      [-93.2845, 18.256],
+      [-93.281, 18.256],
+      [-93.281, 18.2525],
+      [-93.2845, 18.2525],
+    ];
+    const grid = computeCacaoTrackTileGrid(coords, 6, 5);
+    expect(grid.tiles).toHaveLength(30);
+    expect(grid.zoom).toBeGreaterThanOrEqual(15);
+    expect(grid.zoom).toBeLessThanOrEqual(17);
+    expect(grid.viewBoxStr).toMatch(/^\d+\.\d \d+\.\d \d+\.\d \d+\.\d$/);
+    expect(grid.projectedPts).toHaveLength(4);
+    expect(grid.polygonPointsStr.split(' ')).toHaveLength(4);
+
+    const liveUrl = buildWaybackTileUrl('live', 16, 100, 200);
+    expect(liveUrl).toContain(
+      'server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/200/100',
+    );
+
+    const waybackUrl = buildWaybackTileUrl('49059', 16, 100, 200);
+    expect(waybackUrl).toContain(
+      'wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/49059/16/200/100',
+    );
+  });
+
+  it('calcula las 7 capturas de forma variable y dinámica según la fecha de registro', async () => {
+    const { matchWaybackCapturesToHorizons } = await import('@/services/geoEngineLiveClient');
+
+    // Caso 1: Parcela registrada en Noviembre 2026
+    const snaps2026 = matchWaybackCapturesToHorizons('2026-11-09T00:00:00Z');
+    expect(snaps2026).toHaveLength(7);
+    expect(new Set(snaps2026.map((s) => s.period_key)).size).toBe(7);
+    expect(new Set(snaps2026.map((s) => s.captured_date_iso)).size).toBe(7);
+    expect(snaps2026[0].captured_date_iso).toBe('2026-10-29');
+
+    // Caso 2: Parcela registrada en el pasado (p. ej. Mayo 2023)
+    const snaps2023 = matchWaybackCapturesToHorizons('2023-05-15T00:00:00Z');
+    expect(snaps2023).toHaveLength(7);
+    expect(new Set(snaps2023.map((s) => s.period_key)).size).toBe(7);
+    expect(new Set(snaps2023.map((s) => s.captured_date_iso)).size).toBe(7);
+    // Para registro en 2023-05-15, la foto más cercana al registro es 2022 o 2023, no 2026
+    expect(new Date(snaps2023[0].captured_date_iso).getFullYear()).toBeLessThanOrEqual(2023);
+  });
 });

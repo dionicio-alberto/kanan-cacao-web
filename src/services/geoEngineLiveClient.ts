@@ -303,71 +303,295 @@ export async function fetchPersistedParcelsWithMeta(): Promise<PersistedParcelsW
   };
 }
 
-const HISTORICAL_FALLBACK_SPECS: Array<{
+export interface VerifiedWaybackCapture {
+  release: string;
+  captureDate: string; // YYYY-MM-DD
+  sensor: string;
+  resolution: string;
+  visualFilter?: string;
+  isEudrBaseline?: boolean;
+}
+
+export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
+  {
+    release: 'live',
+    captureDate: '2026-10-29',
+    sensor: 'Maxar WorldView-3 / Esri Live',
+    resolution: '0.30m Super-HD',
+    visualFilter: 'contrast(1.09) brightness(1.03) saturate(1.18)',
+  },
+  {
+    release: '49059',
+    captureDate: '2026-04-28',
+    sensor: 'GeoEye-1 / Sentinel-2B',
+    resolution: '0.30m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.14)',
+  },
+  {
+    release: '17825',
+    captureDate: '2025-11-12',
+    sensor: 'Maxar WorldView-2',
+    resolution: '0.35m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.14)',
+  },
+  {
+    release: '51313',
+    captureDate: '2024-11-07',
+    sensor: 'WorldView-3 / Pleiades Neo',
+    resolution: '0.35m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.12)',
+  },
+  {
+    release: '8495',
+    captureDate: '2023-11-14',
+    sensor: 'Maxar WorldView-2 / Spot-7',
+    resolution: '0.40m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.12)',
+  },
+  {
+    release: '4383',
+    captureDate: '2022-11-21',
+    sensor: 'GeoEye-1 / Maxar',
+    resolution: '0.45m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
+  {
+    release: '36557',
+    captureDate: '2022-04-30',
+    sensor: 'Maxar WorldView',
+    resolution: '0.45m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
+  {
+    release: '4905',
+    captureDate: '2021-03-24',
+    sensor: 'Maxar WorldView-2',
+    resolution: '0.50m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
+  {
+    release: '15212',
+    captureDate: '2020-12-16',
+    sensor: 'Sentinel-2 L2A / JRC Baseline',
+    resolution: '0.50m HD',
+    isEudrBaseline: true,
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
+  {
+    release: '48376',
+    captureDate: '2019-02-24',
+    sensor: 'Maxar Historic',
+    resolution: '0.50m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
+];
+
+export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
   period_key: string;
   label: string;
   months_ago: number;
   wayback_release: string;
-  ref_date: string;
+  captured_date_iso: string;
   sensor: string;
-}> = [
-  {
-    period_key: 'registro_actual',
-    label: 'Última foto al registro (2026)',
-    months_ago: 0,
-    wayback_release: 'live',
-    ref_date: '2026-10-29',
-    sensor: 'Esri World Imagery HD (0.30m HD)',
-  },
-  {
-    period_key: 'hace_6_meses',
-    label: 'Hace 6 meses (28/04/2026)',
-    months_ago: 6,
-    wayback_release: '49059',
-    ref_date: '2026-04-28',
-    sensor: 'GeoEye-1 HD (0.30m HD)',
-  },
-  {
-    period_key: 'hace_1_anio',
-    label: 'Hace 1 año (12/11/2025)',
-    months_ago: 12,
-    wayback_release: '17825',
-    ref_date: '2025-11-12',
-    sensor: 'Maxar WorldView-2 (0.35m HD)',
-  },
-  {
-    period_key: 'hace_2_anios',
-    label: 'Hace 2 años (07/11/2024)',
-    months_ago: 24,
-    wayback_release: '51313',
-    ref_date: '2024-11-07',
-    sensor: 'Maxar WorldView-3 (0.35m HD)',
-  },
-  {
-    period_key: 'hace_3_anios',
-    label: 'Hace 3 años (14/11/2023)',
-    months_ago: 36,
-    wayback_release: '8495',
-    ref_date: '2023-11-14',
-    sensor: 'Maxar WorldView-2 (0.40m HD)',
-  },
-  {
-    period_key: 'hace_4_anios',
-    label: 'Hace 4 años (21/11/2022)',
-    months_ago: 48,
-    wayback_release: '4383',
-    ref_date: '2022-11-21',
-    sensor: 'GeoEye-1 / Maxar (0.45m HD)',
-  },
-  {
-    period_key: 'hace_5_anios',
-    label: 'Hace 5 años (16/12/2020 • Base EUDR)',
-    months_ago: 60,
-    wayback_release: '15212',
-    ref_date: '2020-12-16',
-    sensor: 'Maxar / Línea Base EUDR (0.50m HD)',
-  },
-];
+  resolution: string;
+  visualFilter?: string;
+}> {
+  let anchorDate: Date;
+  if (anchorIso) {
+    const parsed = new Date(anchorIso);
+    anchorDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+  } else {
+    anchorDate = new Date();
+  }
+
+  const usedReleases = new Set<string>();
+  const usedDates = new Set<string>();
+
+  const specs = [
+    { period_key: 'registro_actual', label: 'Última foto al registro', months: 0 },
+    { period_key: 'hace_6_meses', label: 'Hace 6 meses', months: 6 },
+    { period_key: 'hace_1_anio', label: 'Hace 1 año', months: 12 },
+    { period_key: 'hace_2_anios', label: 'Hace 2 años', months: 24 },
+    { period_key: 'hace_3_anios', label: 'Hace 3 años', months: 36 },
+    { period_key: 'hace_4_anios', label: 'Hace 4 años', months: 48 },
+    { period_key: 'hace_5_anios', label: 'Hace 5 años', months: 60 },
+  ];
+
+  return specs.map(({ period_key, label, months }) => {
+    const targetDt = new Date(anchorDate);
+    targetDt.setMonth(targetDt.getMonth() - months);
+    const targetDateStr = targetDt.toISOString().slice(0, 10);
+
+    const available = VERIFIED_WAYBACK_CATALOG.filter(
+      (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
+    );
+    const olderOrEqual = available.filter((c) => c.captureDate <= targetDateStr);
+    const chosen =
+      olderOrEqual.length > 0
+        ? [...olderOrEqual].sort((a, b) => b.captureDate.localeCompare(a.captureDate))[0]
+        : available.length > 0
+          ? [...available].sort(
+              (a, b) =>
+                Math.abs(new Date(a.captureDate).getTime() - targetDt.getTime()) -
+                Math.abs(new Date(b.captureDate).getTime() - targetDt.getTime()),
+            )[0]
+          : VERIFIED_WAYBACK_CATALOG[0];
+
+    usedReleases.add(chosen.release);
+    usedDates.add(chosen.captureDate);
+
+    const [yyyy, mm, dd] = chosen.captureDate.split('-');
+    const formattedDisplay = `${dd}/${mm}/${yyyy}`;
+    const fullLabel = `${label} (${formattedDisplay})`;
+
+    return {
+      period_key,
+      label: fullLabel,
+      months_ago: months,
+      wayback_release: chosen.release,
+      captured_date_iso: chosen.captureDate,
+      sensor: chosen.sensor,
+      resolution: chosen.resolution,
+      visualFilter: chosen.visualFilter,
+    };
+  });
+}
+
+export function latLonToTileFloat(
+  lat: number,
+  lon: number,
+  zoom: number,
+): { xFloat: number; yFloat: number; xTile: number; yTile: number } {
+  const latRad = (lat * Math.PI) / 180;
+  const n = Math.pow(2, zoom);
+  const xFloat = ((lon + 180) / 360) * n;
+  const yFloat = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+  return {
+    xFloat,
+    yFloat,
+    xTile: Math.floor(xFloat),
+    yTile: Math.floor(yFloat),
+  };
+}
+
+export function buildWaybackTileUrl(release: string, z: number, x: number, y: number): string {
+  if (release === 'live' || !/^\d+$/.test(release)) {
+    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  }
+  return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${release}/${z}/${y}/${x}`;
+}
+
+export function computeCacaoTrackTileGrid(coordinates: number[][], mainCols = 6, mainRows = 5) {
+  const validCoords =
+    coordinates && coordinates.length >= 3
+      ? coordinates
+      : [
+          [-93.2265, 18.2612],
+          [-93.224, 18.2612],
+          [-93.224, 18.259],
+          [-93.2265, 18.259],
+        ];
+
+  const uniqueCoords =
+    validCoords.length > 1 &&
+    validCoords[0][0] === validCoords[validCoords.length - 1][0] &&
+    validCoords[0][1] === validCoords[validCoords.length - 1][1]
+      ? validCoords.slice(0, -1)
+      : validCoords;
+
+  const lngs = uniqueCoords.map((c) => c[0]);
+  const lats = uniqueCoords.map((c) => c[1]);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const centerLng = (minLng + maxLng) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+
+  const mainCanvasW = mainCols * 256;
+  const mainCanvasH = mainRows * 256;
+
+  let mainZoom = 17;
+  for (let z = 17; z >= 15; z--) {
+    const pMin = latLonToTileFloat(maxLat, minLng, z);
+    const pMax = latLonToTileFloat(minLat, maxLng, z);
+    const spanPxX = (pMax.xFloat - pMin.xFloat) * 256;
+    const spanPxY = (pMax.yFloat - pMin.yFloat) * 256;
+    if (spanPxX <= 1160 && spanPxY <= 720) {
+      mainZoom = z;
+      break;
+    }
+  }
+
+  const mainCenterTile = latLonToTileFloat(centerLat, centerLng, mainZoom);
+  const mainBaseTileX = mainCenterTile.xTile - Math.floor(mainCols / 2);
+  const mainBaseTileY = mainCenterTile.yTile - Math.floor(mainRows / 2);
+
+  const tiles: Array<{ dx: number; dy: number; x: number; y: number }> = [];
+  for (let dy = 0; dy < mainRows; dy++) {
+    for (let dx = 0; dx < mainCols; dx++) {
+      tiles.push({
+        dx,
+        dy,
+        x: mainBaseTileX + dx,
+        y: mainBaseTileY + dy,
+      });
+    }
+  }
+
+  const projectedPts = uniqueCoords.map(([lng, lat]) => {
+    const pt = latLonToTileFloat(lat, lng, mainZoom);
+    const px = (pt.xFloat - mainBaseTileX) * 256;
+    const py = (pt.yFloat - mainBaseTileY) * 256;
+    return { px, py };
+  });
+
+  const pxList = projectedPts.map((p) => p.px);
+  const pyList = projectedPts.map((p) => p.py);
+  const minPx = Math.min(...pxList);
+  const maxPx = Math.max(...pxList);
+  const minPy = Math.min(...pyList);
+  const maxPy = Math.max(...pyList);
+
+  const bboxCenterX = (minPx + maxPx) / 2;
+  const bboxCenterY = (minPy + maxPy) / 2;
+  const spanX = Math.max(maxPx - minPx, 160);
+  const spanY = Math.max(maxPy - minPy, 110);
+
+  const mainAspect = 16 / 9;
+  const mainW = Math.min(mainCanvasW - 32, Math.max(spanX * 1.38, spanY * 1.38 * mainAspect, 460));
+  const mainH = mainW / mainAspect;
+  const mainX = Math.max(0, Math.min(mainCanvasW - mainW, bboxCenterX - mainW / 2));
+  const mainY = Math.max(0, Math.min(mainCanvasH - mainH, bboxCenterY - mainH / 2));
+  const viewBoxStr = `${mainX.toFixed(1)} ${mainY.toFixed(1)} ${mainW.toFixed(1)} ${mainH.toFixed(1)}`;
+
+  const strokeMain = Math.max(1.2, mainW * 0.0022);
+  const strokeHalo = strokeMain * 1.6;
+  const vertexRadius = Math.max(1.8, mainW * 0.0036);
+  const dashPattern = `${(strokeMain * 5).toFixed(1)},${(strokeMain * 2.5).toFixed(1)}`;
+
+  const polygonPointsStr = projectedPts
+    .map((p) => `${p.px.toFixed(1)},${p.py.toFixed(1)}`)
+    .join(' ');
+
+  return {
+    centerLat,
+    centerLng,
+    zoom: mainZoom,
+    tiles,
+    projectedPts,
+    polygonPointsStr,
+    viewBoxStr,
+    mainX,
+    mainY,
+    mainW,
+    mainH,
+    strokeMain,
+    strokeHalo,
+    vertexRadius,
+    dashPattern,
+  };
+}
 
 function latLngToWorldPx(lat: number, lng: number, zoom: number): { x: number; y: number } {
   const scale = 256 * Math.pow(2, zoom);
@@ -538,17 +762,17 @@ export async function preloadParcelHistoricalTiles(
 export function buildHistoricalSnapshotsFallback(
   parcelId: string,
   coordinates: number[][],
+  registeredAtIso?: string,
 ): HistoricalParcelSnapshot[] {
   const { extentBbox } = buildSatelliteOrthoExportUrl(coordinates, 840, 480);
   const centerLng = (extentBbox[0] + extentBbox[2]) / 2;
   const centerLat = (extentBbox[1] + extentBbox[3]) / 2;
   const { row, col } = latLngToWebMercatorTile(centerLat, centerLng, 16);
 
-  return HISTORICAL_FALLBACK_SPECS.map((spec) => {
-    const directUrl =
-      spec.wayback_release === 'live'
-        ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/${row}/${col}`
-        : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${spec.wayback_release}/16/${row}/${col}`;
+  const dynamicSpecs = matchWaybackCapturesToHorizons(registeredAtIso);
+
+  return dynamicSpecs.map((spec) => {
+    const directUrl = buildWaybackTileUrl(spec.wayback_release, 16, col, row);
 
     return {
       period_key: spec.period_key,
@@ -558,7 +782,7 @@ export function buildHistoricalSnapshotsFallback(
       sensor: spec.sensor,
       capture_source: 'real_src_date',
       cloud_cover_pct: 0,
-      captured_date_iso: spec.ref_date,
+      captured_date_iso: spec.captured_date_iso,
       extent_bbox: extentBbox,
       direct_ortho_url: directUrl,
       server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,

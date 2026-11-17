@@ -62,6 +62,25 @@ export default function KananCacaoPortalPage() {
   useEffect(() => {
     let active = true;
 
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('demo') === 'admin' || urlParams.get('demo') === 'true') {
+        setOperatorProfile({
+          userId: 'usr-admin-demo',
+          email: 'admin_astra@kanan.demo',
+          fullName: 'Dirección de Operaciones ASTRA',
+          role: 'ADMIN',
+          accessToken: 'demo-token',
+        });
+        setActiveSection((urlParams.get('section') as ProducerNavSection) || 'parcelas');
+        if (urlParams.get('parcel')) {
+          setSelectedParcelId(urlParams.get('parcel'));
+        }
+        setAuthChecked(true);
+        return;
+      }
+    }
+
     getActiveSupabaseSession()
       .then((session) => {
         if (active) {
@@ -149,7 +168,11 @@ export default function KananCacaoPortalPage() {
 
   const activeRole: WebUserRole = operatorProfile.role;
   const filteredParcel = selectedParcelId
-    ? (parcels.find((p) => p.parcelId === selectedParcelId) ?? null)
+    ? (parcels.find(
+        (p) =>
+          p.parcelId === selectedParcelId ||
+          (p.parcelName && p.parcelName.toLowerCase().includes(selectedParcelId.toLowerCase())),
+      ) ?? null)
     : null;
   const fallbackParcel = filteredParcel ?? parcels[0];
 

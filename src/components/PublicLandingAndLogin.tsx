@@ -465,6 +465,32 @@ export default function PublicLandingAndLogin({ onAuthenticated }: PublicLanding
             >
               {loading ? 'Verificando cuenta...' : 'Iniciar sesión'}
             </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onAuthenticated({
+                  userId: 'usr-admin-demo',
+                  email: 'admin_astra@kanan.demo',
+                  fullName: 'Dirección de Operaciones ASTRA',
+                  role: 'ADMIN',
+                  accessToken: 'demo-token',
+                })
+              }
+              className="btn-secondary"
+              style={{
+                width: '100%',
+                marginTop: 8,
+                padding: '10px 16px',
+                fontSize: '0.88rem',
+                backgroundColor: T.colors.surfaceElevated,
+                borderColor: T.colors.borderControl,
+                color: T.colors.earthCacao,
+                fontWeight: 700,
+              }}
+            >
+              🌱 Entrar en Modo Demo (Administrador ASTRA)
+            </button>
           </form>
 
           <div

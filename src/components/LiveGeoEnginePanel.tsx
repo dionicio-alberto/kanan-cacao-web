@@ -3,9 +3,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   buildHistoricalSnapshotsFallback,
-  computeCenteredWaybackViewport,
-  computeWaybackTileLayout,
+  buildWaybackTileUrl,
+  computeCacaoTrackTileGrid,
   fetchParcelHistoricalSnapshotsLive,
+  matchWaybackCapturesToHorizons,
   requestTracesNtExportLive,
   updateParcelRegistrationDateAdminLive,
 } from '@/services/geoEngineLiveClient';
@@ -17,7 +18,6 @@ import {
   getOrderedTimelapsePeriodKeys,
   getProducerFriendlyParcelStatus,
   isAmazonRegistrationConfirmValid,
-  latLngToScreenPoint,
   TimelapseDirection,
 } from '@/services/producerLogbookService';
 import {
@@ -27,9 +27,6 @@ import {
 } from '@/services/sustainabilityAdminService';
 import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 
-const VIEW_W = 760;
-const VIEW_H = 420;
-
 const DEFAULT_TABASCO_RING: number[][] = [
   [-93.2845, 18.256],
   [-93.281, 18.256],
@@ -37,72 +34,6 @@ const DEFAULT_TABASCO_RING: number[][] = [
   [-93.2845, 18.2525],
   [-93.2845, 18.256],
 ];
-
-// Capturas satelitales HD puras de Esri Wayback idénticas al demo cacao-track (sin procesamiento)
-const DEFAULT_WAYBACK_BY_PERIOD: Record<string, string> = {
-  registro_actual: 'live',
-  hace_6_meses: '49059',
-  hace_1_anio: '17825',
-  hace_2_anios: '51313',
-  hace_3_anios: '8495',
-  hace_4_anios: '4383',
-  hace_5_anios: '15212',
-};
-
-const PERIOD_WAYBACK_SPECS: Record<
-  string,
-  { release: string; label: string; date: string; sensor: string; res: string }
-> = {
-  registro_actual: {
-    release: 'live',
-    label: 'Última foto al registro',
-    date: '2026',
-    sensor: 'Esri World Imagery HD',
-    res: '0.30m HD',
-  },
-  hace_6_meses: {
-    release: '49059',
-    label: 'Hace 6 meses',
-    date: '28 Abr 2026',
-    sensor: 'GeoEye-1 / Sentinel-2B',
-    res: '0.30m HD',
-  },
-  hace_1_anio: {
-    release: '17825',
-    label: 'Hace 1 año',
-    date: '12 Nov 2025',
-    sensor: 'Maxar WorldView-2',
-    res: '0.35m HD',
-  },
-  hace_2_anios: {
-    release: '51313',
-    label: 'Hace 2 años',
-    date: '07 Nov 2024',
-    sensor: 'Maxar WorldView-3',
-    res: '0.35m HD',
-  },
-  hace_3_anios: {
-    release: '8495',
-    label: 'Hace 3 años',
-    date: '14 Nov 2023',
-    sensor: 'Maxar WorldView-2',
-    res: '0.40m HD',
-  },
-  hace_4_anios: {
-    release: '4383',
-    label: 'Hace 4 años',
-    date: '21 Nov 2022',
-    sensor: 'GeoEye-1 / Maxar',
-    res: '0.45m HD',
-  },
-  hace_5_anios: {
-    release: '15212',
-    label: 'Hace 5 años (Línea Base EUDR)',
-    date: '16 Dic 2020',
-    sensor: 'Maxar / Línea Base EUDR',
-    res: '0.50m HD',
-  },
-};
 
 function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boolean {
   if (!Array.isArray(snaps) || snaps.length !== 7) {
@@ -145,7 +76,7 @@ export default function LiveGeoEnginePanel({
   const [snapshots, setSnapshots] = useState<HistoricalParcelSnapshot[]>(() =>
     hasDistinctRealCaptures(parcel.historicalSnapshots)
       ? parcel.historicalSnapshots!
-      : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates),
+      : buildHistoricalSnapshotsFallback(parcel.parcelId, activeCoordinates, defaultRegDate),
   );
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('registro_actual');
   const [persistedOnServer, setPersistedOnServer] = useState<boolean>(
@@ -153,6 +84,13 @@ export default function LiveGeoEnginePanel({
   );
   const [updatingDate, setUpdatingDate] = useState<boolean>(false);
   const [overlayOpacityPct, setOverlayOpacityPct] = useState<number>(75);
+  const [enableSharpen, setEnableSharpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('sharpen') === 'false') return false;
+    }
+    return true;
+  });
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [autoPlaySeconds, setAutoPlaySeconds] = useState<number>(2);
   const [autoPlayDirection, setAutoPlayDirection] = useState<TimelapseDirection>('forward');
@@ -179,10 +117,14 @@ export default function LiveGeoEnginePanel({
 
     let active = true;
     const parsedCoords = JSON.parse(coordKey) as number[][];
-    const localFallback = buildHistoricalSnapshotsFallback(parcel.parcelId, parsedCoords);
+    const localFallback = buildHistoricalSnapshotsFallback(
+      parcel.parcelId,
+      parsedCoords,
+      defaultRegDate,
+    );
     setSnapshots(localFallback);
 
-    fetchParcelHistoricalSnapshotsLive(parcel.parcelId)
+    fetchParcelHistoricalSnapshotsLive(parcel.parcelId, defaultRegDate)
       .then((res) => {
         if (active && hasDistinctRealCaptures(res.snapshots)) {
           setSnapshots(res.snapshots);
@@ -268,35 +210,36 @@ export default function LiveGeoEnginePanel({
     }
   };
 
+  const dynamicSpecs = useMemo(
+    () => matchWaybackCapturesToHorizons(referenceDate || defaultRegDate),
+    [referenceDate, defaultRegDate],
+  );
+
+  const dynamicSpecByKey = useMemo(() => {
+    const map: Record<string, (typeof dynamicSpecs)[0]> = {};
+    for (const s of dynamicSpecs) {
+      map[s.period_key] = s;
+    }
+    return map;
+  }, [dynamicSpecs]);
+
   const activeSnapshot =
     snapshots.find((item) => item.period_key === selectedPeriodKey) ?? snapshots[0];
 
-  const periodSpec = PERIOD_WAYBACK_SPECS[activeSnapshot?.period_key || 'registro_actual'];
+  const currentDynamicSpec = dynamicSpecByKey[activeSnapshot?.period_key || 'registro_actual'];
+
   const activeRelease =
-    (activeSnapshot?.wayback_release && /^\d+$/.test(activeSnapshot.wayback_release)
+    (activeSnapshot?.wayback_release &&
+    (activeSnapshot.wayback_release === 'live' || /^\d+$/.test(activeSnapshot.wayback_release))
       ? activeSnapshot.wayback_release
       : null) ||
-    periodSpec?.release ||
-    DEFAULT_WAYBACK_BY_PERIOD[activeSnapshot?.period_key || 'registro_actual'] ||
+    currentDynamicSpec?.wayback_release ||
     'live';
 
-  const { centerLat, centerLng, zoom } = useMemo(
-    () => computeCenteredWaybackViewport(JSON.parse(coordKey) as number[][], VIEW_W, VIEW_H),
-    [coordKey],
+  const mapData = useMemo(
+    () => computeCacaoTrackTileGrid(activeCoordinates, 6, 5),
+    [activeCoordinates],
   );
-  const activeRenderZoom = activeSnapshot?.render_zoom ?? zoom;
-
-  // Carga directa de teselas Esri HD idéntica a cacao-track, sin pasar por procesamientos o filtros
-  const waybackTiles = useMemo(
-    () =>
-      computeWaybackTileLayout(JSON.parse(coordKey) as number[][], activeRelease, VIEW_W, VIEW_H),
-    [coordKey, activeRelease],
-  );
-
-  const polygonPoints = activeCoordinates.map(([lng, lat]) =>
-    latLngToScreenPoint(lat, lng, VIEW_W, VIEW_H, centerLat, centerLng, activeRenderZoom),
-  );
-  const polygonSvgStr = polygonPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');
 
   const friendlyStatus = getProducerFriendlyParcelStatus(parcel);
   const custf = evaluateCustfAdminCompliance(parcel);
@@ -365,7 +308,7 @@ export default function LiveGeoEnginePanel({
               fontSize: '1.35rem',
             }}
           >
-            Fotografías Satelitales de tu Parcela (Sin Nubes)
+            Fotografías Satelitales de tu Parcela
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.86rem', color: T.colors.textSecondary }}>
             Calculadas respecto a la fecha de registro (6 meses, 1, 2, 3, 4 y 5 años atrás) y
@@ -423,7 +366,7 @@ export default function LiveGeoEnginePanel({
             {updatingDate
               ? 'Recalculando capturas de alta resolución...'
               : persistedOnServer
-                ? '✓ Guardado en servidor sin nubes'
+                ? '✓ Guardado en servidor'
                 : 'Vista centrada de la parcela'}
           </span>
         </div>
@@ -661,23 +604,45 @@ export default function LiveGeoEnginePanel({
           </select>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <label
-            htmlFor="parcel-overlay-opacity"
-            style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: T.colors.textSecondary,
+              cursor: 'pointer',
+            }}
           >
-            Opacidad de la parcela ({overlayOpacityPct}%):
+            <input
+              type="checkbox"
+              checked={enableSharpen}
+              onChange={(e) => setEnableSharpen(e.target.checked)}
+              style={{ accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+            />
+            Nitidez óptica HD
           </label>
-          <input
-            id="parcel-overlay-opacity"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={overlayOpacityPct}
-            onChange={(e) => setOverlayOpacityPct(Number(e.target.value))}
-            style={{ accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
-          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label
+              htmlFor="parcel-overlay-opacity"
+              style={{ fontSize: '0.78rem', fontWeight: 700, color: T.colors.textSecondary }}
+            >
+              Opacidad de la parcela ({overlayOpacityPct}%):
+            </label>
+            <input
+              id="parcel-overlay-opacity"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={overlayOpacityPct}
+              onChange={(e) => setOverlayOpacityPct(Number(e.target.value))}
+              style={{ accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -708,11 +673,13 @@ export default function LiveGeoEnginePanel({
               <div style={{ fontSize: '0.8rem', color: T.colors.textSecondary }}>
                 Fecha exacta en que el satélite tomó esta fotografía:{' '}
                 <strong>
-                  {periodSpec?.date || formatDisplayDateEs(activeSnapshot.captured_date_iso)}
+                  {formatDisplayDateEs(
+                    activeSnapshot.captured_date_iso || currentDynamicSpec?.captured_date_iso,
+                  )}
                 </strong>{' '}
                 · Cielo despejado verificado
-                {periodSpec
-                  ? ` · ${periodSpec.sensor} (${periodSpec.res})`
+                {currentDynamicSpec
+                  ? ` · ${currentDynamicSpec.sensor} (${currentDynamicSpec.resolution})`
                   : ' · Esri World Imagery HD (0.30m HD)'}
               </div>
             </div>
@@ -732,81 +699,112 @@ export default function LiveGeoEnginePanel({
 
           <div
             role="img"
-            aria-label={`Vista satelital centrada: ${periodSpec?.label || formatSnapshotLabelEs(activeSnapshot)}`}
+            aria-label={`Fotografía Satelital HD: ${formatSnapshotLabelEs(activeSnapshot)}`}
             style={{
               position: 'relative',
               width: '100%',
-              maxWidth: 820,
+              maxWidth: 960,
               margin: '0 auto',
-              aspectRatio: `${VIEW_W} / ${VIEW_H}`,
+              aspectRatio: '16 / 9',
               backgroundColor: '#020617',
-              borderRadius: 10,
+              borderRadius: 12,
               overflow: 'hidden',
               border: `2px solid ${T.colors.primaryGreen}`,
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.45)',
             }}
           >
-            {/* Capa de teselas satelitales puras HD (idéntico a cacao-track, sin procesamiento ni filtros) */}
-            {waybackTiles.map((tile) => (
-              <img
-                key={tile.key}
-                src={tile.url}
-                alt=""
-                draggable={false}
-                style={{
-                  position: 'absolute',
-                  left: `${tile.leftPct}%`,
-                  top: `${tile.topPct}%`,
-                  width: `${tile.widthPct}%`,
-                  height: `${tile.heightPct}%`,
-                  pointerEvents: 'none',
-                }}
-              />
-            ))}
-
-            {/* Delimitación vectorial sutil de la parcela sobre el terreno natural */}
             <svg
-              viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+              viewBox={mapData.viewBoxStr}
+              preserveAspectRatio="xMidYMid slice"
               style={{
-                position: 'absolute',
-                inset: 0,
                 width: '100%',
                 height: '100%',
-                pointerEvents: 'none',
-                opacity: overlayOpacityPct / 100,
+                display: 'block',
+                filter: enableSharpen
+                  ? currentDynamicSpec?.visualFilter ||
+                    'contrast(1.08) brightness(1.02) saturate(1.12)'
+                  : 'none',
               }}
             >
-              {polygonPoints.length >= 3 ? (
-                <>
-                  {/* Halo oscuro de contraste */}
+              <defs>
+                <filter id="satellite-hd-sharpen" x="0%" y="0%" width="100%" height="100%">
+                  <feConvolveMatrix
+                    order="3"
+                    kernelMatrix="0 -0.28 0 -0.28 2.12 -0.28 0 -0.28 0"
+                    preserveAlpha="true"
+                  />
+                </filter>
+              </defs>
+
+              {/* Mosaico satelital HD 6x5 de teselas directas (con/sin filtro según toggle) */}
+              <g filter={enableSharpen ? 'url(#satellite-hd-sharpen)' : undefined}>
+                {mapData.tiles.map((t) => (
+                  <image
+                    key={`${activeRelease}-${mapData.zoom}-${t.x}-${t.y}`}
+                    href={buildWaybackTileUrl(activeRelease, mapData.zoom, t.x, t.y)}
+                    x={t.dx * 256}
+                    y={t.dy * 256}
+                    width={256.4}
+                    height={256.4}
+                    preserveAspectRatio="none"
+                  />
+                ))}
+              </g>
+
+              {/* Delimitación vectorial sutil idéntica a cacao-track */}
+              {mapData.projectedPts.length >= 3 && (
+                <g style={{ opacity: overlayOpacityPct / 100 }}>
                   <polygon
-                    points={polygonSvgStr}
+                    points={mapData.polygonPointsStr}
                     fill="none"
                     stroke="#020617"
-                    strokeWidth={4.5}
-                    strokeOpacity={0.6}
+                    strokeOpacity={0.55}
+                    strokeWidth={mapData.strokeHalo}
+                    strokeLinejoin="round"
                   />
-                  {/* Trazo nítido punteado verde esmeralda */}
                   <polygon
-                    points={polygonSvgStr}
-                    fill="rgba(16, 185, 129, 0.08)"
+                    points={mapData.polygonPointsStr}
+                    fill="none"
                     stroke="#6EE7B7"
-                    strokeWidth={2.5}
-                    strokeDasharray="6, 4"
+                    strokeOpacity={0.88}
+                    strokeWidth={mapData.strokeMain}
+                    strokeDasharray={mapData.dashPattern}
+                    strokeLinejoin="round"
                   />
-                </>
-              ) : null}
-              {polygonPoints.map((pt, idx) => (
-                <circle
-                  key={`corner-${idx}`}
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={4}
-                  fill="#10B981"
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                />
-              ))}
+                  {mapData.projectedPts.map((pt, idx) => (
+                    <circle
+                      key={`vtx-${idx}`}
+                      cx={pt.px}
+                      cy={pt.py}
+                      r={mapData.vertexRadius}
+                      fill="#34D399"
+                      fillOpacity={0.9}
+                      stroke="#FFFFFF"
+                      strokeOpacity={0.9}
+                      strokeWidth={mapData.strokeMain * 0.45}
+                    />
+                  ))}
+                </g>
+              )}
             </svg>
+
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 10,
+                right: 12,
+                padding: '4px 10px',
+                borderRadius: 6,
+                backgroundColor: 'rgba(2, 6, 23, 0.85)',
+                color: '#E2E8F0',
+                fontSize: '0.74rem',
+                fontFamily: 'monospace',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                pointerEvents: 'none',
+              }}
+            >
+              Fotografía Satelital HD • {formatSnapshotLabelEs(activeSnapshot)}
+            </div>
           </div>
         </div>
       ) : null}

@@ -416,7 +416,8 @@ export function getNextTimelapsePeriodKey(
 }
 
 export function canAdminEditRegistrationDate(role?: string | null): boolean {
-  return (role || '').trim().toLowerCase() === 'admin_astra';
+  const clean = (role || '').trim().toLowerCase();
+  return clean === 'admin_astra' || clean === 'admin';
 }
 
 export function isAmazonRegistrationConfirmValid(confirmationInput: string): boolean {
