@@ -370,9 +370,19 @@ export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
     resolution: '0.50m HD',
     visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
   },
+  {
+    release: '19930',
+    captureDate: '2014-04-09',
+    sensor: 'Maxar Historic',
+    resolution: '0.50m HD',
+    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+  },
 ];
 
-export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
+export function matchWaybackCapturesToHorizons(
+  anchorIso?: string,
+  catalogOverride?: VerifiedWaybackCapture[],
+): Array<{
   period_key: string;
   label: string;
   months_ago: number;
@@ -391,6 +401,7 @@ export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
   }
 
   const anchorMs = anchorDate.getTime();
+  const catalog = catalogOverride || VERIFIED_WAYBACK_CATALOG;
   const usedReleases = new Set<string>();
   const usedDates = new Set<string>();
 
@@ -409,34 +420,41 @@ export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
     targetDt.setMonth(targetDt.getMonth() - months);
     const targetMs = targetDt.getTime();
 
-    // Priorizar release 15212 (Línea Base EUDR Dic 2020) para el horizonte de 5 años si no ha sido usado
-    let chosen: VerifiedWaybackCapture | undefined;
-    if (months >= 60 && !usedReleases.has('15212')) {
-      chosen = VERIFIED_WAYBACK_CATALOG.find((c) => c.release === '15212');
-    }
+    const available = catalog.filter(
+      (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
+    );
 
-    if (!chosen) {
-      const available = VERIFIED_WAYBACK_CATALOG.filter(
-        (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
+    // Priorizar capturas que no sean posteriores a la fecha de registro de la parcela
+    const notFutureOfAnchor = available.filter((c) => {
+      const cMs = new Date(c.captureDate).getTime();
+      return cMs <= anchorMs + 30 * 86400000;
+    });
+
+    let pool: VerifiedWaybackCapture[];
+    if (notFutureOfAnchor.length > 0) {
+      pool = notFutureOfAnchor;
+    } else {
+      const pastFromFull = catalog.filter(
+        (c) => new Date(c.captureDate).getTime() <= anchorMs + 30 * 86400000,
       );
-
-      // Ventana de tolerancia: evitar capturas muy posteriores al horizonte buscado (+45 días)
-      // y nunca posteriores al registro de la parcela (+30 días)
-      const validWindow = available.filter((c) => {
-        const cMs = new Date(c.captureDate).getTime();
-        return cMs <= targetMs + 45 * 86400000 && cMs <= anchorMs + 30 * 86400000;
-      });
-
-      const candidates = validWindow.length > 0 ? validWindow : available;
-
-      const sorted = [...candidates].sort((a, b) => {
-        const diffA = Math.abs(new Date(a.captureDate).getTime() - targetMs);
-        const diffB = Math.abs(new Date(b.captureDate).getTime() - targetMs);
-        return diffA - diffB;
-      });
-
-      chosen = sorted[0] || VERIFIED_WAYBACK_CATALOG[0];
+      pool = pastFromFull.length > 0 ? pastFromFull : available;
     }
+
+    // Ventana de tolerancia alrededor del horizonte buscado (+45 días)
+    const validWindow = pool.filter((c) => {
+      const cMs = new Date(c.captureDate).getTime();
+      return cMs <= targetMs + 45 * 86400000;
+    });
+
+    const candidates = validWindow.length > 0 ? validWindow : pool;
+
+    const sorted = [...candidates].sort((a, b) => {
+      const diffA = Math.abs(new Date(a.captureDate).getTime() - targetMs);
+      const diffB = Math.abs(new Date(b.captureDate).getTime() - targetMs);
+      return diffA - diffB;
+    });
+
+    const chosen = sorted[0] || catalog[0];
 
     usedReleases.add(chosen.release);
     usedDates.add(chosen.captureDate);

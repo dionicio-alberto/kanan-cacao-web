@@ -96,7 +96,8 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
   });
 
   it('calcula las 7 capturas de forma variable y dinámica según la fecha de registro', async () => {
-    const { matchWaybackCapturesToHorizons } = await import('@/services/geoEngineLiveClient');
+    const { matchWaybackCapturesToHorizons, VERIFIED_WAYBACK_CATALOG } =
+      await import('@/services/geoEngineLiveClient');
 
     // Caso 1: Parcela registrada en Noviembre 2026
     const snaps2026 = matchWaybackCapturesToHorizons('2026-11-09T00:00:00Z');
@@ -106,20 +107,33 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     expect(new Set(snaps2026.map((s) => s.wayback_release)).size).toBe(7);
     expect(snaps2026[0].captured_date_iso).toBe('2026-10-29');
 
-    // Validación estricta de hace 4 y hace 5 años
-    const snap4y = snaps2026.find((s) => s.period_key === 'hace_4_anios');
-    const snap5y = snaps2026.find((s) => s.period_key === 'hace_5_anios');
-    expect(snap4y?.wayback_release).toBe('4383'); // Nov 2022
-    expect(snap4y?.captured_date_iso).toBe('2022-11-21');
-    expect(snap5y?.wayback_release).toBe('15212'); // Línea Base EUDR Dic 2020
-    expect(snap5y?.captured_date_iso).toBe('2020-12-16');
+    // Para registro en 2026: hace 5 años (~2021) coincide con la Línea Base EUDR (15212, Dic 2020)
+    const snap5y_2026 = snaps2026.find((s) => s.period_key === 'hace_5_anios');
+    expect(snap5y_2026?.wayback_release).toBe('15212');
 
-    // Caso 2: Parcela registrada en el pasado (p. ej. Mayo 2023)
-    const snaps2023 = matchWaybackCapturesToHorizons('2023-05-15T00:00:00Z');
-    expect(snaps2023).toHaveLength(7);
-    expect(new Set(snaps2023.map((s) => s.period_key)).size).toBe(7);
-    expect(new Set(snaps2023.map((s) => s.captured_date_iso)).size).toBe(7);
-    // Para registro en 2023-05-15, la foto más cercana al registro es 2022 o 2023, no 2026
-    expect(new Date(snaps2023[0].captured_date_iso).getFullYear()).toBeLessThanOrEqual(2023);
+    // Caso 2: Parcela registrada en el futuro (p. ej. Noviembre 2027 con vuelo 2027 disponible)
+    // Para registro en 2027: hace 5 años (~2022) NO es 15212 (2020), sino 4383 (2022)
+    const catalog2027 = [
+      {
+        release: '60001',
+        captureDate: '2027-10-20',
+        sensor: 'Maxar WorldView-3',
+        resolution: '0.30m HD',
+      },
+      ...VERIFIED_WAYBACK_CATALOG,
+    ];
+    const snaps2027 = matchWaybackCapturesToHorizons('2027-11-09T00:00:00Z', catalog2027);
+    const snap5y_2027 = snaps2027.find((s) => s.period_key === 'hace_5_anios');
+    expect(snap5y_2027?.wayback_release).not.toBe('15212');
+    expect(snap5y_2027?.wayback_release).toBe('4383'); // Nov 2022
+    expect(snap5y_2027?.captured_date_iso).toBe('2022-11-21');
+
+    // Caso 3: Parcela registrada en el pasado (p. ej. Mayo 2024)
+    // Para registro en 2024: hace 5 años (~2019) NO es 15212 (2020), sino 48376 (2019)
+    const snaps2024 = matchWaybackCapturesToHorizons('2024-05-15T00:00:00Z');
+    const snap5y_2024 = snaps2024.find((s) => s.period_key === 'hace_5_anios');
+    expect(snap5y_2024?.wayback_release).not.toBe('15212');
+    expect(snap5y_2024?.wayback_release).toBe('48376'); // Feb 2019
+    expect(new Date(snaps2024[0].captured_date_iso).getFullYear()).toBeLessThanOrEqual(2024);
   });
 });
