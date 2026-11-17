@@ -747,7 +747,8 @@ export default function LiveGeoEnginePanel({
                     border: '1px solid #86EFAC',
                   }}
                 >
-                  Wayback Release: M={currentDynamicSpec?.wayback_release || activeSnapshot.wayback_release}
+                  Wayback Release: M=
+                  {currentDynamicSpec?.wayback_release || activeSnapshot.wayback_release}
                 </span>
                 <span
                   style={{
