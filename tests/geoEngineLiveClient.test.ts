@@ -95,46 +95,88 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     );
   });
 
-  it('calcula las 7 capturas de forma variable y dinámica según la fecha de registro', async () => {
-    const { matchWaybackCapturesToHorizons, VERIFIED_WAYBACK_CATALOG } =
-      await import('@/services/geoEngineLiveClient');
+  it('garantiza matemáticamente la resta temporal (año de registro - N años) y margen válido por parcela', async () => {
+    const { matchWaybackCapturesToHorizons } = await import('@/services/geoEngineLiveClient');
 
-    // Caso 1: Parcela registrada en Noviembre 2026
+    // =========================================================================
+    // PARCELA 1: Registrada en Noviembre 2026 (ej. Terreno Carrizal - 09/11/2026)
+    // =========================================================================
     const snaps2026 = matchWaybackCapturesToHorizons('2026-11-09T00:00:00Z');
     expect(snaps2026).toHaveLength(7);
-    expect(new Set(snaps2026.map((s) => s.period_key)).size).toBe(7);
-    expect(new Set(snaps2026.map((s) => s.captured_date_iso)).size).toBe(7);
     expect(new Set(snaps2026.map((s) => s.wayback_release)).size).toBe(7);
-    expect(snaps2026[0].captured_date_iso).toBe('2026-10-29');
 
-    // Para registro en 2026: hace 5 años (~2021) coincide con la Línea Base EUDR (15212, Dic 2020)
-    const snap5y_2026 = snaps2026.find((s) => s.period_key === 'hace_5_anios');
-    expect(snap5y_2026?.wayback_release).toBe('15212');
+    // Validación estricta año por año de la resta matemática
+    const expectedYears2026: Record<string, number> = {
+      registro_actual: 2026,
+      hace_6_meses: 2026,
+      hace_1_anio: 2025,
+      hace_2_anios: 2024,
+      hace_3_anios: 2023,
+      hace_4_anios: 2022,
+      hace_5_anios: 2021,
+    };
 
-    // Caso 2: Parcela registrada en el futuro (p. ej. Noviembre 2027 con vuelo 2027 disponible)
-    // Para registro en 2027: hace 5 años (~2022) NO es 15212 (2020), sino 45134 (2022)
-    const catalog2027 = [
-      {
-        release: '60001',
-        captureDate: '2027-10-20',
-        sensor: 'Maxar WorldView-3',
-        resolution: '0.30m HD',
-      },
-      ...VERIFIED_WAYBACK_CATALOG,
-    ];
-    const snaps2027 = matchWaybackCapturesToHorizons('2027-11-09T00:00:00Z', catalog2027);
-    const snap5y_2027 = snaps2027.find((s) => s.period_key === 'hace_5_anios');
-    expect(snap5y_2027?.wayback_release).not.toBe('15212');
-    expect(snap5y_2027?.wayback_release).toBe('45134'); // Dic 2022
-    expect(snap5y_2027?.captured_date_iso).toBe('2022-12-14');
-    expect(snap5y_2027?.sensor).toBe('Maxar WorldView-3');
+    for (const snap of snaps2026) {
+      const expectedYr = expectedYears2026[snap.period_key];
+      expect(snap.captured_year).toBe(expectedYr);
+      expect(snap.target_year).toBe(expectedYr);
+      expect(snap.is_exact_year).toBe(true);
+      expect(snap.sensor).toBe('Maxar WorldView-3');
+      expect(snap.resolution).toBe('0.30m Super-HD');
+      expect(snap.margin_label).toContain('Dentro de margen');
+    }
 
-    // Caso 3: Parcela registrada en el pasado (p. ej. Mayo 2024)
-    // Para registro en 2024: hace 5 años (~2019) NO es 15212 (2020), sino 48376 (2019)
-    const snaps2024 = matchWaybackCapturesToHorizons('2024-05-15T00:00:00Z');
-    const snap5y_2024 = snaps2024.find((s) => s.period_key === 'hace_5_anios');
-    expect(snap5y_2024?.wayback_release).not.toBe('15212');
-    expect(snap5y_2024?.wayback_release).toBe('48376'); // Feb 2019
-    expect(new Date(snaps2024[0].captured_date_iso).getFullYear()).toBeLessThanOrEqual(2024);
+    // Validación específica del horizonte Hace 4 Años para registro en 2026
+    const snap4y_2026 = snaps2026.find((s) => s.period_key === 'hace_4_anios')!;
+    expect(snap4y_2026.captured_year).toBe(2022); // 2026 - 4 = 2022
+    // La captura debe ser de otoño 2022 (septiembre, octubre o noviembre)
+    const month4y_2026 = parseInt(snap4y_2026.captured_date_iso.split('-')[1], 10);
+    expect([9, 10, 11, 12]).toContain(month4y_2026);
+    expect(snap4y_2026.days_offset).toBeLessThanOrEqual(15);
+
+    // =========================================================================
+    // PARCELA 2: Registrada en Mayo 2025 (ej. Finca Bellavista - 15/05/2025)
+    // Cada parcela tiene sus propias fotos calculadas de forma independiente
+    // =========================================================================
+    const snaps2025 = matchWaybackCapturesToHorizons('2025-05-15T00:00:00Z');
+    expect(snaps2025).toHaveLength(7);
+    expect(new Set(snaps2025.map((s) => s.wayback_release)).size).toBe(7);
+
+    const expectedYears2025: Record<string, number> = {
+      registro_actual: 2025,
+      hace_6_meses: 2024,
+      hace_1_anio: 2024,
+      hace_2_anios: 2023,
+      hace_3_anios: 2022,
+      hace_4_anios: 2021, // 2025 - 4 = 2021
+      hace_5_anios: 2020, // 2025 - 5 = 2020
+    };
+
+    for (const snap of snaps2025) {
+      const expectedYr = expectedYears2025[snap.period_key];
+      expect(snap.captured_year).toBe(expectedYr);
+      expect(snap.is_exact_year).toBe(true);
+    }
+
+    // El año 4 de Parcela 2025 es 2021, NUNCA igual al año 4 de Parcela 2026 (2022)
+    const snap4y_2025 = snaps2025.find((s) => s.period_key === 'hace_4_anios')!;
+    expect(snap4y_2025.captured_year).toBe(2021);
+    expect(snap4y_2025.wayback_release).not.toBe(snap4y_2026.wayback_release);
+
+    // =========================================================================
+    // PARCELA 3: Registrada en Marzo 2024 (ej. Carlos Chontal - 20/03/2024)
+    // =========================================================================
+    const snaps2024 = matchWaybackCapturesToHorizons('2024-03-20T00:00:00Z');
+    const snap4y_2024 = snaps2024.find((s) => s.period_key === 'hace_4_anios')!;
+    const snap5y_2024 = snaps2024.find((s) => s.period_key === 'hace_5_anios')!;
+
+    expect(snap4y_2024.captured_year).toBe(2020); // 2024 - 4 = 2020
+    expect(snap5y_2024.captured_year).toBe(2019); // 2024 - 5 = 2019
+    expect(snap4y_2024.is_exact_year).toBe(true);
+    expect(snap5y_2024.is_exact_year).toBe(true);
+
+    // Confirmación de no coincidencia de corridas entre parcelas
+    expect(snap4y_2024.wayback_release).not.toBe(snap4y_2026.wayback_release);
+    expect(snap4y_2024.wayback_release).not.toBe(snap4y_2025.wayback_release);
   });
 });
