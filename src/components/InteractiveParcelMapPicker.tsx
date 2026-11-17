@@ -86,12 +86,12 @@ export default function InteractiveParcelMapPicker({
 
         const baseUrl =
           mapLayer === 'satellite'
-            ? `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/${zoom}/${ty}/${tx}.jpg`
+            ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
             : `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
 
         const overlayUrl =
           mapLayer === 'satellite'
-            ? `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/${zoom}/${ty}/${tx}`
+            ? `https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/${zoom}/${ty}/${tx}`
             : undefined;
 
         list.push({
@@ -197,6 +197,31 @@ export default function InteractiveParcelMapPicker({
     const clickY = ((e.clientY - rect.top) / Math.max(rect.height, 1)) * VIEW_H;
     const picked = screenClickToLatLng(clickX, clickY, VIEW_W, VIEW_H, centerLat, centerLng, zoom);
     setLintNotice(null);
+
+    // Snap automático de 5 metros al vértice de origen si hay >= 3 esquinas
+    if (vertices.length >= 3) {
+      const originLng = vertices[0][0];
+      const originLat = vertices[0][1];
+      const dLat = ((picked.lat - originLat) * Math.PI) / 180;
+      const dLon = ((picked.lng - originLng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((originLat * Math.PI) / 180) *
+          Math.cos((picked.lat * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distMeters = 6378137.0 * c;
+
+      if (distMeters <= 5.0) {
+        const closed = [...vertices, [originLng, originLat]];
+        const ha = Number(estimatePolygonHectares(closed).toFixed(2));
+        onPolygonChange(closed, ha);
+        setLintNotice(`🛰️ ¡Polígono cerrado con snap de 5m! (${ha.toFixed(2)} hectáreas medidas).`);
+        return;
+      }
+    }
+
     emitUpdatedVertices([...vertices, [picked.lng, picked.lat]]);
   };
 
