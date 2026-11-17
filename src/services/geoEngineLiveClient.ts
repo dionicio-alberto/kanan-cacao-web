@@ -6,10 +6,6 @@ import {
   ParcelLegalDocument,
   RegistrationDateAuditEntry,
 } from '@/services/sustainabilityAdminService';
-import {
-  OFFICIAL_WAYBACK_CATALOG,
-  OfficialWaybackRelease,
-} from '@/services/waybackOfficialCatalog';
 
 const rawGeoEngineUrl =
   process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ||
