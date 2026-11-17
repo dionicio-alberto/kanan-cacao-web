@@ -6,6 +6,10 @@ import {
   ParcelLegalDocument,
   RegistrationDateAuditEntry,
 } from '@/services/sustainabilityAdminService';
+import {
+  OFFICIAL_WAYBACK_CATALOG,
+  OfficialWaybackRelease,
+} from '@/services/waybackOfficialCatalog';
 
 const rawGeoEngineUrl =
   process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ||
@@ -379,19 +383,29 @@ export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
   },
 ];
 
-export function matchWaybackCapturesToHorizons(
-  anchorIso?: string,
-  catalogOverride?: VerifiedWaybackCapture[],
-): Array<{
+export interface DynamicWaybackHorizonMatch {
   period_key: string;
   label: string;
   months_ago: number;
-  wayback_release: string;
+  years_ago: number;
+  target_date_iso: string;
+  target_year: number;
   captured_date_iso: string;
+  captured_year: number;
+  wayback_release: string;
+  days_offset: number;
+  margin_label: string;
   sensor: string;
   resolution: string;
+  is_exact_year: boolean;
   visualFilter?: string;
-}> {
+  isEudrBaseline?: boolean;
+}
+
+export function matchWaybackCapturesToHorizons(
+  anchorIso?: string,
+  catalogOverride?: OfficialWaybackRelease[],
+): DynamicWaybackHorizonMatch[] {
   let anchorDate: Date;
   if (anchorIso) {
     const parsed = new Date(anchorIso);
@@ -400,64 +414,87 @@ export function matchWaybackCapturesToHorizons(
     anchorDate = new Date();
   }
 
-  const anchorMs = anchorDate.getTime();
-  const catalog = catalogOverride || VERIFIED_WAYBACK_CATALOG;
+  const catalog = catalogOverride || OFFICIAL_WAYBACK_CATALOG;
   const usedReleases = new Set<string>();
-  const usedDates = new Set<string>();
+
+  const anchorYear = anchorDate.getUTCFullYear();
+  const anchorMonth = anchorDate.getUTCMonth() + 1; // 1-12
+  const anchorDay = anchorDate.getUTCDate();
 
   const specs = [
-    { period_key: 'registro_actual', label: 'Última foto al registro', months: 0 },
-    { period_key: 'hace_6_meses', label: 'Hace 6 meses', months: 6 },
-    { period_key: 'hace_1_anio', label: 'Hace 1 año', months: 12 },
-    { period_key: 'hace_2_anios', label: 'Hace 2 años', months: 24 },
-    { period_key: 'hace_3_anios', label: 'Hace 3 años', months: 36 },
-    { period_key: 'hace_4_anios', label: 'Hace 4 años', months: 48 },
-    { period_key: 'hace_5_anios', label: 'Hace 5 años', months: 60 },
+    { period_key: 'registro_actual', label: 'Última foto al registro', months: 0, years: 0 },
+    { period_key: 'hace_6_meses', label: 'Hace 6 meses', months: 6, years: 0.5 },
+    { period_key: 'hace_1_anio', label: 'Hace 1 año', months: 12, years: 1 },
+    { period_key: 'hace_2_anios', label: 'Hace 2 años', months: 24, years: 2 },
+    { period_key: 'hace_3_anios', label: 'Hace 3 años', months: 36, years: 3 },
+    { period_key: 'hace_4_anios', label: 'Hace 4 años', months: 48, years: 4 },
+    { period_key: 'hace_5_anios', label: 'Hace 5 años', months: 60, years: 5 },
   ];
 
-  return specs.map(({ period_key, label, months }) => {
-    const targetDt = new Date(anchorDate);
-    targetDt.setMonth(targetDt.getMonth() - months);
-    const targetMs = targetDt.getTime();
-
-    const available = catalog.filter(
-      (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
-    );
-
-    // Priorizar capturas que no sean posteriores a la fecha de registro de la parcela
-    const notFutureOfAnchor = available.filter((c) => {
-      const cMs = new Date(c.captureDate).getTime();
-      return cMs <= anchorMs + 30 * 86400000;
-    });
-
-    let pool: VerifiedWaybackCapture[];
-    if (notFutureOfAnchor.length > 0) {
-      pool = notFutureOfAnchor;
-    } else {
-      const pastFromFull = catalog.filter(
-        (c) => new Date(c.captureDate).getTime() <= anchorMs + 30 * 86400000,
-      );
-      pool = pastFromFull.length > 0 ? pastFromFull : available;
+  return specs.map(({ period_key, label, months, years }) => {
+    // 1. Calcular el año y fecha objetivo matemática: año_registro - años
+    let targetYear = anchorYear - Math.floor(years);
+    let targetMonth = anchorMonth;
+    if (years === 0.5) {
+      targetMonth = anchorMonth - 6;
+      if (targetMonth <= 0) {
+        targetMonth += 12;
+        targetYear -= 1;
+      }
     }
 
-    // Ventana de tolerancia alrededor del horizonte buscado (+45 días)
-    const validWindow = pool.filter((c) => {
-      const cMs = new Date(c.captureDate).getTime();
-      return cMs <= targetMs + 45 * 86400000;
+    const safeDay = Math.min(anchorDay, 28);
+    const targetDateIso = `${targetYear.toString().padStart(4, '0')}-${targetMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
+    const targetMs = new Date(targetDateIso).getTime();
+
+    // 2. Filtrar candidatos que pertenezcan estrictamente al targetYear y no hayan sido usados
+    const candidatesInYear = catalog.filter((c) => {
+      const cYear = parseInt(c.captureDate.slice(0, 4), 10);
+      return cYear === targetYear && !usedReleases.has(c.release);
     });
 
-    const candidates = validWindow.length > 0 ? validWindow : pool;
+    let pool: OfficialWaybackRelease[];
+    if (candidatesInYear.length > 0) {
+      pool = candidatesInYear;
+    } else {
+      const olderCandidates = catalog.filter((c) => {
+        const cYear = parseInt(c.captureDate.slice(0, 4), 10);
+        return cYear <= targetYear && !usedReleases.has(c.release);
+      });
+      pool = olderCandidates.length > 0 ? olderCandidates : catalog;
+    }
 
-    const sorted = [...candidates].sort((a, b) => {
+    // 3. Dentro del año objetivo, priorizar capturas en o antes de la fecha objetivo (o ventana de +15 días)
+    const validWindow = pool.filter((c) => {
+      const cMs = new Date(c.captureDate).getTime();
+      return cMs <= targetMs + 15 * 86400000;
+    });
+
+    const candidateSelection = validWindow.length > 0 ? validWindow : pool;
+
+    // 4. Ordenar por cercanía absoluta a targetMs
+    const sorted = [...candidateSelection].sort((a, b) => {
       const diffA = Math.abs(new Date(a.captureDate).getTime() - targetMs);
       const diffB = Math.abs(new Date(b.captureDate).getTime() - targetMs);
       return diffA - diffB;
     });
 
-    const chosen = sorted[0] || catalog[0];
-
+    const chosen = sorted[0] || pool[0];
     usedReleases.add(chosen.release);
-    usedDates.add(chosen.captureDate);
+
+    const chosenDateMs = new Date(chosen.captureDate).getTime();
+    const daysOffset = Math.round((chosenDateMs - targetMs) / 86400000);
+    const capturedYear = parseInt(chosen.captureDate.slice(0, 4), 10);
+    const isExactYear = capturedYear === targetYear;
+
+    let marginLabel = '';
+    if (daysOffset === 0) {
+      marginLabel = `Exacta al día objetivo (${targetYear})`;
+    } else if (daysOffset < 0) {
+      marginLabel = `Dentro de margen (${Math.abs(daysOffset)} días antes · año ${capturedYear})`;
+    } else {
+      marginLabel = `Dentro de margen (+${daysOffset} días · año ${capturedYear})`;
+    }
 
     const [yyyy, mm, dd] = chosen.captureDate.split('-');
     const formattedDisplay = `${dd}/${mm}/${yyyy}`;
@@ -467,11 +504,19 @@ export function matchWaybackCapturesToHorizons(
       period_key,
       label: fullLabel,
       months_ago: months,
-      wayback_release: chosen.release,
+      years_ago: years,
+      target_date_iso: targetDateIso,
+      target_year: targetYear,
       captured_date_iso: chosen.captureDate,
-      sensor: chosen.sensor,
-      resolution: chosen.resolution,
-      visualFilter: chosen.visualFilter,
+      captured_year: capturedYear,
+      wayback_release: chosen.release,
+      days_offset: daysOffset,
+      margin_label: marginLabel,
+      sensor: 'Maxar WorldView-3',
+      resolution: '0.30m Super-HD',
+      is_exact_year: isExactYear,
+      visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
+      isEudrBaseline: period_key === 'hace_5_anios' && targetYear <= 2021,
     };
   });
 }
@@ -797,6 +842,11 @@ export function buildHistoricalSnapshotsFallback(
       period_key: spec.period_key,
       label: spec.label,
       months_ago: spec.months_ago,
+      target_date_iso: spec.target_date_iso,
+      target_year: spec.target_year,
+      captured_year: spec.captured_year,
+      days_offset: spec.days_offset,
+      margin_label: spec.margin_label,
       wayback_release: spec.wayback_release,
       sensor: spec.sensor,
       capture_source: 'real_src_date',

@@ -8,6 +8,11 @@ export interface HistoricalParcelSnapshot {
   period_key: string;
   label: string;
   months_ago: number;
+  target_date_iso?: string;
+  target_year?: number;
+  captured_year?: number;
+  days_offset?: number;
+  margin_label?: string;
   wayback_release?: string;
   sensor?: string;
   render_zoom?: number;
