@@ -103,7 +103,16 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     expect(snaps2026).toHaveLength(7);
     expect(new Set(snaps2026.map((s) => s.period_key)).size).toBe(7);
     expect(new Set(snaps2026.map((s) => s.captured_date_iso)).size).toBe(7);
+    expect(new Set(snaps2026.map((s) => s.wayback_release)).size).toBe(7);
     expect(snaps2026[0].captured_date_iso).toBe('2026-10-29');
+
+    // Validación estricta de hace 4 y hace 5 años
+    const snap4y = snaps2026.find((s) => s.period_key === 'hace_4_anios');
+    const snap5y = snaps2026.find((s) => s.period_key === 'hace_5_anios');
+    expect(snap4y?.wayback_release).toBe('4383'); // Nov 2022
+    expect(snap4y?.captured_date_iso).toBe('2022-11-21');
+    expect(snap5y?.wayback_release).toBe('15212'); // Línea Base EUDR Dic 2020
+    expect(snap5y?.captured_date_iso).toBe('2020-12-16');
 
     // Caso 2: Parcela registrada en el pasado (p. ej. Mayo 2023)
     const snaps2023 = matchWaybackCapturesToHorizons('2023-05-15T00:00:00Z');

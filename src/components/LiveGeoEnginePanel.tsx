@@ -39,7 +39,11 @@ function hasDistinctRealCaptures(snaps?: HistoricalParcelSnapshot[] | null): boo
   if (!Array.isArray(snaps) || snaps.length !== 7) {
     return false;
   }
-  const releases = new Set(snaps.map((item) => item.wayback_release).filter(Boolean));
+  const releases = new Set(
+    snaps
+      .map((item) => item.wayback_release)
+      .filter((r): r is string => Boolean(r && (r === 'live' || /^\d+$/.test(r)))),
+  );
   const dates = new Set(snaps.map((item) => item.captured_date_iso).filter(Boolean));
   return (
     releases.size === 7 &&
@@ -100,7 +104,11 @@ export default function LiveGeoEnginePanel({
   useEffect(() => {
     setExportMsg(null);
     setError(null);
-    setSelectedPeriodKey('registro_actual');
+    const initialPeriod =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('period') || 'registro_actual'
+        : 'registro_actual';
+    setSelectedPeriodKey(initialPeriod);
     setIsAutoPlaying(false);
     setReferenceDate(defaultRegDate);
     setPendingRegDate(defaultRegDate);

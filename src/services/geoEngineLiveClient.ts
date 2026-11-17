@@ -314,9 +314,9 @@ export interface VerifiedWaybackCapture {
 
 export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
   {
-    release: 'live',
+    release: '43291',
     captureDate: '2026-10-29',
-    sensor: 'Maxar WorldView-3 / Esri Live',
+    sensor: 'Maxar WorldView-3',
     resolution: '0.30m Super-HD',
     visualFilter: 'contrast(1.09) brightness(1.03) saturate(1.18)',
   },
@@ -356,20 +356,6 @@ export const VERIFIED_WAYBACK_CATALOG: VerifiedWaybackCapture[] = [
     visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
   },
   {
-    release: '36557',
-    captureDate: '2022-04-30',
-    sensor: 'Maxar WorldView',
-    resolution: '0.45m HD',
-    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
-  },
-  {
-    release: '4905',
-    captureDate: '2021-03-24',
-    sensor: 'Maxar WorldView-2',
-    resolution: '0.50m HD',
-    visualFilter: 'contrast(1.08) brightness(1.02) saturate(1.10)',
-  },
-  {
     release: '15212',
     captureDate: '2020-12-16',
     sensor: 'Sentinel-2 L2A / JRC Baseline',
@@ -404,6 +390,7 @@ export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
     anchorDate = new Date();
   }
 
+  const anchorMs = anchorDate.getTime();
   const usedReleases = new Set<string>();
   const usedDates = new Set<string>();
 
@@ -420,22 +407,36 @@ export function matchWaybackCapturesToHorizons(anchorIso?: string): Array<{
   return specs.map(({ period_key, label, months }) => {
     const targetDt = new Date(anchorDate);
     targetDt.setMonth(targetDt.getMonth() - months);
-    const targetDateStr = targetDt.toISOString().slice(0, 10);
+    const targetMs = targetDt.getTime();
 
-    const available = VERIFIED_WAYBACK_CATALOG.filter(
-      (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
-    );
-    const olderOrEqual = available.filter((c) => c.captureDate <= targetDateStr);
-    const chosen =
-      olderOrEqual.length > 0
-        ? [...olderOrEqual].sort((a, b) => b.captureDate.localeCompare(a.captureDate))[0]
-        : available.length > 0
-          ? [...available].sort(
-              (a, b) =>
-                Math.abs(new Date(a.captureDate).getTime() - targetDt.getTime()) -
-                Math.abs(new Date(b.captureDate).getTime() - targetDt.getTime()),
-            )[0]
-          : VERIFIED_WAYBACK_CATALOG[0];
+    // Priorizar release 15212 (Línea Base EUDR Dic 2020) para el horizonte de 5 años si no ha sido usado
+    let chosen: VerifiedWaybackCapture | undefined;
+    if (months >= 60 && !usedReleases.has('15212')) {
+      chosen = VERIFIED_WAYBACK_CATALOG.find((c) => c.release === '15212');
+    }
+
+    if (!chosen) {
+      const available = VERIFIED_WAYBACK_CATALOG.filter(
+        (c) => !usedReleases.has(c.release) && !usedDates.has(c.captureDate),
+      );
+
+      // Ventana de tolerancia: evitar capturas muy posteriores al horizonte buscado (+45 días)
+      // y nunca posteriores al registro de la parcela (+30 días)
+      const validWindow = available.filter((c) => {
+        const cMs = new Date(c.captureDate).getTime();
+        return cMs <= targetMs + 45 * 86400000 && cMs <= anchorMs + 30 * 86400000;
+      });
+
+      const candidates = validWindow.length > 0 ? validWindow : available;
+
+      const sorted = [...candidates].sort((a, b) => {
+        const diffA = Math.abs(new Date(a.captureDate).getTime() - targetMs);
+        const diffB = Math.abs(new Date(b.captureDate).getTime() - targetMs);
+        return diffA - diffB;
+      });
+
+      chosen = sorted[0] || VERIFIED_WAYBACK_CATALOG[0];
+    }
 
     usedReleases.add(chosen.release);
     usedDates.add(chosen.captureDate);
