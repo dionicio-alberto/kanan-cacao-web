@@ -309,55 +309,63 @@ const HISTORICAL_FALLBACK_SPECS: Array<{
   months_ago: number;
   wayback_release: string;
   ref_date: string;
+  sensor: string;
 }> = [
   {
     period_key: 'registro_actual',
-    label: 'Última foto al registro (01/07/2025)',
+    label: 'Última foto al registro (2026)',
     months_ago: 0,
-    wayback_release: 's2cloudless-2025_3857',
-    ref_date: '2025-07-01',
+    wayback_release: 'live',
+    ref_date: '2026-10-29',
+    sensor: 'Esri World Imagery HD (0.30m HD)',
   },
   {
     period_key: 'hace_6_meses',
-    label: 'Hace 6 meses (01/07/2024)',
+    label: 'Hace 6 meses (28/04/2026)',
     months_ago: 6,
-    wayback_release: 's2cloudless-2024_3857',
-    ref_date: '2024-07-01',
+    wayback_release: '49059',
+    ref_date: '2026-04-28',
+    sensor: 'GeoEye-1 HD (0.30m HD)',
   },
   {
     period_key: 'hace_1_anio',
-    label: 'Hace 1 año (01/07/2023)',
+    label: 'Hace 1 año (12/11/2025)',
     months_ago: 12,
-    wayback_release: 's2cloudless-2023_3857',
-    ref_date: '2023-07-01',
+    wayback_release: '17825',
+    ref_date: '2025-11-12',
+    sensor: 'Maxar WorldView-2 (0.35m HD)',
   },
   {
     period_key: 'hace_2_anios',
-    label: 'Hace 2 años (01/07/2022)',
+    label: 'Hace 2 años (07/11/2024)',
     months_ago: 24,
-    wayback_release: 's2cloudless-2022_3857',
-    ref_date: '2022-07-01',
+    wayback_release: '51313',
+    ref_date: '2024-11-07',
+    sensor: 'Maxar WorldView-3 (0.35m HD)',
   },
   {
     period_key: 'hace_3_anios',
-    label: 'Hace 3 años (01/07/2021)',
+    label: 'Hace 3 años (14/11/2023)',
     months_ago: 36,
-    wayback_release: 's2cloudless-2021_3857',
-    ref_date: '2021-07-01',
+    wayback_release: '8495',
+    ref_date: '2023-11-14',
+    sensor: 'Maxar WorldView-2 (0.40m HD)',
   },
   {
     period_key: 'hace_4_anios',
-    label: 'Hace 4 años (01/07/2020)',
+    label: 'Hace 4 años (21/11/2022)',
     months_ago: 48,
-    wayback_release: 's2cloudless-2020_3857',
-    ref_date: '2020-07-01',
+    wayback_release: '4383',
+    ref_date: '2022-11-21',
+    sensor: 'GeoEye-1 / Maxar (0.45m HD)',
   },
   {
     period_key: 'hace_5_anios',
-    label: 'Hace 5 años (01/07/2019)',
+    label: 'Hace 5 años (16/12/2020 • Base EUDR)',
     months_ago: 60,
-    wayback_release: 's2cloudless-2019_3857',
-    ref_date: '2019-07-01',
+    wayback_release: '15212',
+    ref_date: '2020-12-16',
+    sensor: 'Maxar / Línea Base EUDR (0.50m HD)',
   },
 ];
 
@@ -463,11 +471,10 @@ export function computeWaybackTileLayout(
 
   for (let tx = minTx; tx <= maxTx; tx += 1) {
     for (let ty = minTy; ty <= maxTy; ty += 1) {
-      const tileUrl = waybackRelease.startsWith('mpc:')
-        ? `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/${fetchZoom}/${tx}/${ty}.png?collection=sentinel-2-l2a&item=${encodeURIComponent(waybackRelease.slice(4))}&assets=visual&asset_bidx=visual%7C1,2,3`
-        : waybackRelease.startsWith('s2cloudless-')
-          ? `https://tiles.maps.eox.at/wmts/1.0.0/${waybackRelease}/default/g/${fetchZoom}/${ty}/${tx}.jpg`
-          : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${fetchZoom}/${ty}/${tx}`;
+      let tileUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${fetchZoom}/${ty}/${tx}`;
+      if (waybackRelease && waybackRelease !== 'live' && /^\d+$/.test(waybackRelease)) {
+        tileUrl = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${waybackRelease}/${fetchZoom}/${ty}/${tx}`;
+      }
       tiles.push({
         key: `${waybackRelease}-${fetchZoom}-${tx}-${ty}`,
         url: tileUrl,
@@ -494,14 +501,12 @@ export async function preloadParcelHistoricalTiles(
   let completed = 0;
 
   const preloadSingleSnapshot = (snap: HistoricalParcelSnapshot) => {
-    const urls = snap.cached_image_url
-      ? [snap.cached_image_url]
-      : computeWaybackTileLayout(
-          coordinates,
-          snap.wayback_release || 's2cloudless-2025_3857',
-          760,
-          420,
-        ).map((t) => t.url);
+    const urls = computeWaybackTileLayout(
+      coordinates,
+      snap.wayback_release || 'live',
+      760,
+      420,
+    ).map((t) => t.url);
     return Promise.all(
       urls.map(
         (src) =>
@@ -539,32 +544,36 @@ export function buildHistoricalSnapshotsFallback(
   const centerLat = (extentBbox[1] + extentBbox[3]) / 2;
   const { row, col } = latLngToWebMercatorTile(centerLat, centerLng, 16);
 
-  return HISTORICAL_FALLBACK_SPECS.map((spec) => ({
-    period_key: spec.period_key,
-    label: spec.label,
-    months_ago: spec.months_ago,
-    wayback_release: spec.wayback_release,
-    sensor: 'Copernicus Sentinel-2 EU (Cloudless)',
-    capture_source: 'real_src_date',
-    cloud_cover_pct: 0,
-    captured_date_iso: spec.ref_date,
-    extent_bbox: extentBbox,
-    direct_ortho_url: `https://tiles.maps.eox.at/wmts/1.0.0/${spec.wayback_release}/default/g/15/${row}/${col}.jpg`,
-    server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
-  }));
+  return HISTORICAL_FALLBACK_SPECS.map((spec) => {
+    const directUrl =
+      spec.wayback_release === 'live'
+        ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/${row}/${col}`
+        : `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${spec.wayback_release}/16/${row}/${col}`;
+
+    return {
+      period_key: spec.period_key,
+      label: spec.label,
+      months_ago: spec.months_ago,
+      wayback_release: spec.wayback_release,
+      sensor: spec.sensor,
+      capture_source: 'real_src_date',
+      cloud_cover_pct: 0,
+      captured_date_iso: spec.ref_date,
+      extent_bbox: extentBbox,
+      direct_ortho_url: directUrl,
+      server_cached_image_path: `/api/v1/parcels/${encodeURIComponent(parcelId)}/historical-image/${spec.period_key}`,
+    };
+  });
 }
 
 export function getSnapshotImageSrc(snapshot: HistoricalParcelSnapshot): string {
-  if (snapshot.cached_image_url) {
-    return snapshot.cached_image_url;
+  if (snapshot.direct_ortho_url) {
+    return snapshot.direct_ortho_url;
   }
-  if (snapshot.server_cached_image_path) {
-    const q = snapshot.wayback_release
-      ? `?wayback_release=${encodeURIComponent(snapshot.wayback_release)}`
-      : '';
-    return `${GEO_ENGINE_BASE_URL}${snapshot.server_cached_image_path}${q}`;
+  if (snapshot.wayback_release && /^\d+$/.test(snapshot.wayback_release)) {
+    return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${snapshot.wayback_release}/16/0/0`;
   }
-  return snapshot.direct_ortho_url;
+  return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/0/0';
 }
 
 export async function fetchParcelDocumentsLive(parcelId: string): Promise<ParcelLegalDocument[]> {

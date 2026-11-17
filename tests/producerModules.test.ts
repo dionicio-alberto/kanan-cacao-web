@@ -139,8 +139,8 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(new Set(releases).size).toBe(7);
   expect(new Set(dates).size).toBe(7);
   expect(snapshots.every((s) => s.capture_source === 'real_src_date')).toBe(true);
-  expect(releases.every((r) => Boolean(r && r.startsWith('s2cloudless-')))).toBe(true);
-  expect(computeWaybackTileLayout(coords, 's2cloudless-2025_3857').length).toBeGreaterThan(0);
+  expect(releases.every((r) => Boolean(r && (r === 'live' || /^\d+$/.test(r))))).toBe(true);
+  expect(computeWaybackTileLayout(coords, '49059').length).toBeGreaterThan(0);
 
   const tinyPolygon = [
     [-93.2845, 18.256],
@@ -156,11 +156,11 @@ it('genera exactamente 7 momentos históricos centrados desde registro hasta 5 a
   expect(
     getSnapshotImageSrc({
       ...snapshots[0],
-      cached_image_url: 'https://cdn.example/storage/v1/object/public/parcel-satellite-maps/ok.jpg',
+      direct_ortho_url: 'https://cdn.example/storage/v1/object/public/parcel-satellite-maps/ok.jpg',
     }),
   ).toBe('https://cdn.example/storage/v1/object/public/parcel-satellite-maps/ok.jpg');
-  expect(computeWaybackTileLayout(coords, 's2cloudless-2024_3857')[0].url).toContain(
-    'tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857',
+  expect(computeWaybackTileLayout(coords, '49059')[0].url).toContain(
+    'wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/49059',
   );
   expect(getParcelDocumentDownloadUrl('PAR-TEST-5Y', 'doc-1')).toContain(
     '/api/v1/parcels/PAR-TEST-5Y/documents/doc-1/file',
