@@ -9,9 +9,9 @@ import { NATURISTA_WEB_THEME as T } from '@/theme/naturistaWebTheme';
 interface ProducerTopNavProps {
   activeSection: ProducerNavSection;
   onSelectSection: (section: ProducerNavSection) => void;
-  parcels: ParcelAdminOverview[];
-  selectedParcelId: string | null;
-  onSelectParcel: (parcelId: string | null) => void;
+  parcels?: ParcelAdminOverview[];
+  selectedParcelId?: string | null;
+  onSelectParcel?: (parcelId: string | null) => void;
   operatorProfile: AuthenticatedOperatorProfile;
   storageEngine: string;
   onSignOut: () => Promise<void>;
@@ -28,9 +28,9 @@ const BASE_NAV_ITEMS: Array<{ id: ProducerNavSection; label: string; icon: strin
 export default function ProducerTopNav({
   activeSection,
   onSelectSection,
-  parcels,
-  selectedParcelId,
-  onSelectParcel,
+  parcels: _parcels,
+  selectedParcelId: _selectedParcelId,
+  onSelectParcel: _onSelectParcel,
   operatorProfile,
   storageEngine,
   onSignOut,
@@ -204,58 +204,6 @@ export default function ProducerTopNav({
             );
           })}
         </nav>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            backgroundColor: T.colors.softCacaoBg,
-            border: `1.5px solid ${T.colors.earthCacao}`,
-            borderRadius: 8,
-            padding: '3px 8px',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <label
-            htmlFor="global-parcel-select"
-            style={{
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              color: T.colors.earthCacao,
-              textTransform: 'uppercase',
-              letterSpacing: '0.02em',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            📍 Parcela:
-          </label>
-          <select
-            id="global-parcel-select"
-            value={selectedParcelId ?? ''}
-            onChange={(e) => onSelectParcel(e.target.value ? e.target.value : null)}
-            className="field-input"
-            style={{
-              width: 'auto',
-              minWidth: 165,
-              maxWidth: 230,
-              marginTop: 0,
-              padding: '3px 7px',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              borderColor: T.colors.earthCacao,
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <option value="">Todas (Ver menú)</option>
-            {parcels.map((p) => (
-              <option key={p.parcelId} value={p.parcelId}>
-                {p.parcelName || p.producerName} ({p.municipality})
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
     </header>
   );
