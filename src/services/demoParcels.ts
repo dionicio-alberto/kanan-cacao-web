@@ -4,6 +4,7 @@ import { ParcelAdminOverview } from '@/services/sustainabilityAdminService';
 export const INITIAL_PARCELS: ParcelAdminOverview[] = [
   {
     parcelId: 'PAR-CHONTALPA-01',
+    parcelName: 'Terreno Carrizal (Don Mateo)',
     producerId: 'PROD-MATEO-01',
     producerName: 'Don Mateo Hernández (Comalcalco)',
     municipality: 'Comalcalco',
@@ -14,9 +15,18 @@ export const INITIAL_PARCELS: ParcelAdminOverview[] = [
     shadeTreeCount: 120,
     acahualRemovalPost2020: false,
     hasVerifiedCustfPermit: false,
+    registeredAtIso: '2026-11-09T00:00:00Z',
+    coordinates: [
+      [-93.226786, 18.262521],
+      [-93.225573, 18.262694],
+      [-93.225799, 18.261278],
+      [-93.227011, 18.261105],
+      [-93.226786, 18.262521],
+    ],
   },
   {
     parcelId: 'PAR-PARAISO-02',
+    parcelName: 'Finca Bellavista (Doña Elena)',
     producerId: 'PROD-ELENA-02',
     producerName: 'Doña Elena Córdova (Paraíso)',
     municipality: 'Paraíso',
@@ -27,9 +37,18 @@ export const INITIAL_PARCELS: ParcelAdminOverview[] = [
     shadeTreeCount: 95,
     acahualRemovalPost2020: true,
     hasVerifiedCustfPermit: true,
+    registeredAtIso: '2025-05-15T00:00:00Z',
+    coordinates: [
+      [-93.2145, 18.3982],
+      [-93.212, 18.3982],
+      [-93.212, 18.3955],
+      [-93.2145, 18.3955],
+      [-93.2145, 18.3982],
+    ],
   },
   {
     parcelId: 'PAR-CUNDUACAN-03',
+    parcelName: 'Rancho San Antonio (Carlos Chontal)',
     producerId: 'PROD-CARLOS-03',
     producerName: 'Carlos Chontal (Cunduacán)',
     municipality: 'Cunduacán',
@@ -40,5 +59,13 @@ export const INITIAL_PARCELS: ParcelAdminOverview[] = [
     shadeTreeCount: 30,
     acahualRemovalPost2020: true,
     hasVerifiedCustfPermit: false,
+    registeredAtIso: '2024-03-20T00:00:00Z',
+    coordinates: [
+      [-93.178, 18.064],
+      [-93.174, 18.064],
+      [-93.174, 18.06],
+      [-93.178, 18.06],
+      [-93.178, 18.064],
+    ],
   },
 ];

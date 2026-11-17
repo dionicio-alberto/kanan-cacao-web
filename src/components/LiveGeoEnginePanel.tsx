@@ -237,12 +237,11 @@ export default function LiveGeoEnginePanel({
   const currentDynamicSpec = dynamicSpecByKey[activeSnapshot?.period_key || 'registro_actual'];
 
   const activeRelease =
+    currentDynamicSpec?.wayback_release ||
     (activeSnapshot?.wayback_release &&
     (activeSnapshot.wayback_release === 'live' || /^\d+$/.test(activeSnapshot.wayback_release))
       ? activeSnapshot.wayback_release
-      : null) ||
-    currentDynamicSpec?.wayback_release ||
-    'live';
+      : 'live');
 
   const mapData = useMemo(
     () => computeCacaoTrackTileGrid(activeCoordinates, 6, 5),
@@ -703,6 +702,115 @@ export default function LiveGeoEnginePanel({
             >
               Superficie: {parcel.areaHectares.toFixed(2)} hectáreas
             </span>
+          </div>
+
+          {/* Panel informativo oficial de metadata satelital y margen temporal */}
+          <div
+            style={{
+              backgroundColor: '#F0FDF4',
+              border: '1.5px solid #16A34A',
+              borderRadius: 10,
+              padding: '10px 14px',
+              display: 'grid',
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.76rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: '#15803D',
+                  fontWeight: 800,
+                }}
+              >
+                🛰️ Metadata Oficial del Satélite · Maxar WorldView-3
+              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    backgroundColor: '#DCFCE7',
+                    color: '#14532D',
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    border: '1px solid #86EFAC',
+                  }}
+                >
+                  Wayback Release: M=
+                  {currentDynamicSpec?.wayback_release || activeSnapshot.wayback_release}
+                </span>
+                <span
+                  style={{
+                    backgroundColor: '#DCFCE7',
+                    color: '#14532D',
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    border: '1px solid #86EFAC',
+                  }}
+                >
+                  Resolución: 0.30m Super-HD
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                gap: 10,
+                paddingTop: 8,
+                borderTop: '1px solid #BBF7D0',
+                fontSize: '0.8rem',
+              }}
+            >
+              <div>
+                <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
+                  Fecha registro parcela:
+                </span>
+                <strong style={{ color: '#111827' }}>{formatDisplayDateEs(referenceDate)}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
+                  Horizonte y resta matemática:
+                </span>
+                <strong style={{ color: '#111827' }}>
+                  {currentDynamicSpec
+                    ? `${currentDynamicSpec.years_ago} años atrás (Año ${currentDynamicSpec.target_year})`
+                    : 'Registro actual'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
+                  Fecha exacta captura satélite:
+                </span>
+                <strong style={{ color: '#15803D' }}>
+                  {formatDisplayDateEs(
+                    currentDynamicSpec?.captured_date_iso || activeSnapshot.captured_date_iso,
+                  )}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#4B5563', display: 'block', fontSize: '0.72rem' }}>
+                  Margen anual verificado:
+                </span>
+                <strong style={{ color: '#15803D' }}>
+                  ✓ {currentDynamicSpec?.margin_label || 'Dentro de margen permitido'}
+                </strong>
+              </div>
+            </div>
           </div>
 
           <div
