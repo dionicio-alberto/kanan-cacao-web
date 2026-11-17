@@ -112,7 +112,7 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     expect(snap5y_2026?.wayback_release).toBe('15212');
 
     // Caso 2: Parcela registrada en el futuro (p. ej. Noviembre 2027 con vuelo 2027 disponible)
-    // Para registro en 2027: hace 5 años (~2022) NO es 15212 (2020), sino 4383 (2022)
+    // Para registro en 2027: hace 5 años (~2022) NO es 15212 (2020), sino 45134 (2022)
     const catalog2027 = [
       {
         release: '60001',
@@ -125,8 +125,9 @@ describe('Satélite Esri World Imagery y proyección ortogonal', () => {
     const snaps2027 = matchWaybackCapturesToHorizons('2027-11-09T00:00:00Z', catalog2027);
     const snap5y_2027 = snaps2027.find((s) => s.period_key === 'hace_5_anios');
     expect(snap5y_2027?.wayback_release).not.toBe('15212');
-    expect(snap5y_2027?.wayback_release).toBe('4383'); // Nov 2022
-    expect(snap5y_2027?.captured_date_iso).toBe('2022-11-21');
+    expect(snap5y_2027?.wayback_release).toBe('45134'); // Dic 2022
+    expect(snap5y_2027?.captured_date_iso).toBe('2022-12-14');
+    expect(snap5y_2027?.sensor).toBe('Maxar WorldView-3');
 
     // Caso 3: Parcela registrada en el pasado (p. ej. Mayo 2024)
     // Para registro en 2024: hace 5 años (~2019) NO es 15212 (2020), sino 48376 (2019)
