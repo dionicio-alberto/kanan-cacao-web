@@ -341,7 +341,9 @@ describe('Web Test Suite: Sección Bitácora', () => {
       {
         id: 'L-FITO',
         parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
         activityType: 'DESMOMIFICACION_FITOSANITARIA',
+        activityLabel: 'Fitosanidad',
         performedDate: '2026-11-10',
         laborHours: 4,
         costMxn: 400,
@@ -352,7 +354,9 @@ describe('Web Test Suite: Sección Bitácora', () => {
       {
         id: 'L-NUTRI',
         parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
         activityType: 'FERTILIZACION_ORGANICA',
+        activityLabel: 'Nutrición',
         performedDate: '2026-11-15',
         laborHours: 5,
         costMxn: 600,
