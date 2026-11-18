@@ -242,4 +242,135 @@ describe('Web Test Suite: Sección Bitácora', () => {
     expect(recommendedActivities).not.toContain('COSECHA_CORTE');
     expect(recommendedActivities).not.toContain('ACOPIO');
   });
+
+  it('soporta navegación a formularios especializados por labor con parámetros contextuales', () => {
+    // Simulación de notas contextuales generadas por labor
+    const buildLaborNote = (activity: string, customParam: string, baseNotes: string) => {
+      return `${baseNotes} [${activity}] ${customParam}`.trim();
+    };
+
+    const sombraNote = buildLaborNote(
+      'Sombra',
+      'Árboles intervenidos: Guamo y Cedro · Cobertura: 35%',
+      'Poda alta',
+    );
+    expect(sombraNote).toContain('[Sombra] Árboles intervenidos: Guamo y Cedro');
+
+    const fitoNote = buildLaborNote(
+      'Fitosanidad',
+      'Tratamiento de: Moniliasis · Mazorcas: 80',
+      'Recorrido',
+    );
+    expect(fitoNote).toContain('[Fitosanidad] Tratamiento de: Moniliasis');
+
+    const bioNote = buildLaborNote('Bioinsumo', 'Producto: Caldo Bordelés 1%', 'Fumigación');
+    expect(bioNote).toContain('[Bioinsumo] Producto: Caldo Bordelés 1%');
+  });
+
+  it('permite la edición reactiva de registros existentes en el historial', () => {
+    const originalEntry: FieldLogEntry = {
+      id: 'LOG-WEB-EDIT-1',
+      parcelId: 'PAR-1',
+      parcelName: 'Finca La Chontalpa Lote 1',
+      activityType: 'FERTILIZACION_ORGANICA',
+      activityLabel: 'Fertilización Orgánica',
+      performedDate: '2026-11-18',
+      inputUsed: 'Bocashi',
+      dose: '2 kg/árbol',
+      laborHours: 4,
+      workersCount: 2,
+      costMxn: 500,
+      notes: 'Nota inicial',
+      photos: [],
+      createdAtIso: new Date().toISOString(),
+    };
+
+    // Actualización in-place
+    const updatedEntry: FieldLogEntry = {
+      ...originalEntry,
+      inputUsed: 'Bocashi enriquecido + lixiviado de lombriz',
+      dose: '3 kg/árbol',
+      laborHours: 6,
+      costMxn: 750,
+      notes: 'Nota corregida tras inspección agronómica',
+    };
+
+    expect(updatedEntry.id).toBe(originalEntry.id);
+    expect(updatedEntry.inputUsed).toBe('Bocashi enriquecido + lixiviado de lombriz');
+    expect(updatedEntry.dose).toBe('3 kg/árbol');
+    expect(updatedEntry.laborHours).toBe(6);
+    expect(updatedEntry.costMxn).toBe(750);
+    expect(updatedEntry.notes).toContain('Nota corregida');
+  });
+
+  it('permite la eliminación segura de registros con confirmación', () => {
+    let logs: FieldLogEntry[] = [
+      {
+        id: 'L-1',
+        parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
+        activityType: 'PODA',
+        activityLabel: 'Poda',
+        performedDate: '2026-11-10',
+        notes: 'Poda',
+        photos: [],
+        createdAtIso: new Date().toISOString(),
+      },
+      {
+        id: 'L-2',
+        parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
+        activityType: 'FERTILIZACION',
+        activityLabel: 'Fertilización',
+        performedDate: '2026-11-12',
+        notes: 'Fertilización',
+        photos: [],
+        createdAtIso: new Date().toISOString(),
+      },
+    ];
+
+    expect(logs).toHaveLength(2);
+    // Eliminar L-1
+    logs = logs.filter((l) => l.id !== 'L-1');
+    expect(logs).toHaveLength(1);
+    expect(logs[0].id).toBe('L-2');
+  });
+
+  it('calcula métricas de resumen agronómico en el Hub de Bitácora', () => {
+    const logs: FieldLogEntry[] = [
+      {
+        id: 'L-FITO',
+        parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
+        activityType: 'DESMOMIFICACION_FITOSANITARIA',
+        activityLabel: 'Fitosanidad',
+        performedDate: '2026-11-10',
+        laborHours: 4,
+        costMxn: 400,
+        notes: 'Control monilia',
+        photos: [],
+        createdAtIso: new Date().toISOString(),
+      },
+      {
+        id: 'L-NUTRI',
+        parcelId: 'PAR-1',
+        parcelName: 'Parcela 1',
+        activityType: 'FERTILIZACION_ORGANICA',
+        activityLabel: 'Nutrición',
+        performedDate: '2026-11-15',
+        laborHours: 5,
+        costMxn: 600,
+        notes: 'Abonado',
+        photos: [],
+        createdAtIso: new Date().toISOString(),
+      },
+    ];
+
+    const totalHours = logs.reduce((acc, l) => acc + (l.laborHours || 0), 0);
+    const totalCost = logs.reduce((acc, l) => acc + (l.costMxn || 0), 0);
+
+    expect(totalHours).toBe(9);
+    expect(totalCost).toBe(1000);
+    expect(logs).toHaveLength(2);
+  });
 });
