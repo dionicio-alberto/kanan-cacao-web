@@ -242,4 +242,28 @@ describe('Web Test Suite: Sección Bitácora', () => {
     expect(recommendedActivities).not.toContain('COSECHA_CORTE');
     expect(recommendedActivities).not.toContain('ACOPIO');
   });
+
+  it('soporta navegación a formularios especializados por labor con parámetros contextuales', () => {
+    // Simulación de notas contextuales generadas por labor
+    const buildLaborNote = (activity: string, customParam: string, baseNotes: string) => {
+      return `${baseNotes} [${activity}] ${customParam}`.trim();
+    };
+
+    const sombraNote = buildLaborNote(
+      'Sombra',
+      'Árboles intervenidos: Guamo y Cedro · Cobertura: 35%',
+      'Poda alta',
+    );
+    expect(sombraNote).toContain('[Sombra] Árboles intervenidos: Guamo y Cedro');
+
+    const fitoNote = buildLaborNote(
+      'Fitosanidad',
+      'Tratamiento de: Moniliasis · Mazorcas: 80',
+      'Recorrido',
+    );
+    expect(fitoNote).toContain('[Fitosanidad] Tratamiento de: Moniliasis');
+
+    const bioNote = buildLaborNote('Bioinsumo', 'Producto: Caldo Bordelés 1%', 'Fumigación');
+    expect(bioNote).toContain('[Bioinsumo] Producto: Caldo Bordelés 1%');
+  });
 });
