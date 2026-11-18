@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import AdminLogbookConfigPanel from '@/components/modules/AdminLogbookConfigPanel';
 import {
   assignProfileRoleAdminLive,
   fetchAdminRolesPanelLive,
@@ -27,6 +28,7 @@ const EMPTY_PERMISSIONS: RolePermissionSet = {
   can_view_carbon: false,
   can_edit_regdate: false,
   can_manage_roles: false,
+  can_configure_logbook: false,
 };
 
 const PERMISSION_LABELS: Array<{ key: keyof RolePermissionSet; label: string }> = [
@@ -37,9 +39,11 @@ const PERMISSION_LABELS: Array<{ key: keyof RolePermissionSet; label: string }> 
   { key: 'can_view_carbon', label: 'Consultar inventario de sombra y carbono' },
   { key: 'can_edit_regdate', label: 'Modificar fecha de registro (con confirmación)' },
   { key: 'can_manage_roles', label: 'Administrar perfiles y roles del sistema' },
+  { key: 'can_configure_logbook', label: 'Configurar catálogo y opciones de la bitácora' },
 ];
 
 export default function AdminRoleControlModule({ operatorProfile }: AdminRoleControlModuleProps) {
+  const [activeTab, setActiveTab] = useState<'roles' | 'bitacora'>('roles');
   const [profiles, setProfiles] = useState<AdminManagedProfile[]>([]);
   const [roles, setRoles] = useState<EditableRoleDefinition[]>([]);
   const [draftRoleByUser, setDraftRoleByUser] = useState<Record<string, string>>({});
@@ -56,6 +60,8 @@ export default function AdminRoleControlModule({ operatorProfile }: AdminRoleCon
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const isAdmin = operatorProfile.role === 'admin_astra' || operatorProfile.role === 'ADMIN';
+
   const syncPanelState = (payload: {
     profiles: AdminManagedProfile[];
     roles: EditableRoleDefinition[];
@@ -70,14 +76,14 @@ export default function AdminRoleControlModule({ operatorProfile }: AdminRoleCon
   };
 
   useEffect(() => {
-    if (operatorProfile.role !== 'admin_astra') {
+    if (!isAdmin) {
       setLoading(false);
       return;
     }
     let active = true;
     setLoading(true);
     fetchAdminRolesPanelLive({
-      requesterRole: operatorProfile.role,
+      requesterRole: 'admin_astra',
       accessToken: operatorProfile.accessToken,
     })
       .then((res) => {
@@ -106,9 +112,9 @@ export default function AdminRoleControlModule({ operatorProfile }: AdminRoleCon
     return () => {
       active = false;
     };
-  }, [operatorProfile.role, operatorProfile.accessToken]);
+  }, [isAdmin, operatorProfile.accessToken]);
 
-  if (operatorProfile.role !== 'admin_astra') {
+  if (!isAdmin) {
     return (
       <section
         role="alert"
@@ -199,17 +205,77 @@ export default function AdminRoleControlModule({ operatorProfile }: AdminRoleCon
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <section
-        aria-labelledby="admin-panel-title"
+      {/* Subnavegación del panel de administración */}
+      <div
+        role="tablist"
+        aria-label="Secciones del panel de administración"
         style={{
-          backgroundColor: T.colors.surfaceCard,
-          border: `1.5px solid ${T.colors.borderSubtle}`,
-          borderRadius: 14,
-          padding: 20,
-          display: 'grid',
-          gap: 14,
+          display: 'flex',
+          gap: 10,
+          borderBottom: `2px solid ${T.colors.borderSubtle}`,
+          paddingBottom: 8,
+          flexWrap: 'wrap',
         }}
       >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'roles'}
+          onClick={() => setActiveTab('roles')}
+          style={{
+            padding: '8px 18px',
+            backgroundColor:
+              activeTab === 'roles' ? T.colors.primaryGreen : T.colors.surfaceElevated,
+            color: activeTab === 'roles' ? '#FFFFFF' : T.colors.textPrimary,
+            border: `1px solid ${
+              activeTab === 'roles' ? T.colors.primaryGreen : T.colors.borderControl
+            }`,
+            borderRadius: 8,
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+          }}
+        >
+          🛡️ Perfiles y Roles
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'bitacora'}
+          onClick={() => setActiveTab('bitacora')}
+          style={{
+            padding: '8px 18px',
+            backgroundColor:
+              activeTab === 'bitacora' ? T.colors.primaryGreen : T.colors.surfaceElevated,
+            color: activeTab === 'bitacora' ? '#FFFFFF' : T.colors.textPrimary,
+            border: `1px solid ${
+              activeTab === 'bitacora' ? T.colors.primaryGreen : T.colors.borderControl
+            }`,
+            borderRadius: 8,
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+          }}
+        >
+          🌾 Configuración de Bitácora
+        </button>
+      </div>
+
+      {activeTab === 'bitacora' ? (
+        <AdminLogbookConfigPanel operatorProfile={operatorProfile} />
+      ) : (
+        <>
+          <section
+            aria-labelledby="admin-panel-title"
+            style={{
+              backgroundColor: T.colors.surfaceCard,
+              border: `1.5px solid ${T.colors.borderSubtle}`,
+              borderRadius: 14,
+              padding: 20,
+              display: 'grid',
+              gap: 14,
+            }}
+          >
         <div>
           <h1
             id="admin-panel-title"
@@ -534,6 +600,8 @@ export default function AdminRoleControlModule({ operatorProfile }: AdminRoleCon
           </div>
         </form>
       </section>
+        </>
+      )}
     </div>
   );
 }

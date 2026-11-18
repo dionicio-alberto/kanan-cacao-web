@@ -7,12 +7,21 @@ export type ProducerNavSection =
   'inicio' | 'parcelas' | 'bitacora' | 'cosecha' | 'carbono' | 'admin_panel';
 
 export type FieldActivityType =
+  | 'MANEJO_SOMBRA'
+  | 'PODA_CACAO'
+  | 'DESMOMIFICACION_FITOSANITARIA'
+  | 'FERTILIZACION_ORGANICA'
+  | 'CONTROL_MALEZAS'
+  | 'RIEGO_DRENAJE'
+  | 'APLICACION_BIOINSUMO'
+  | 'INSPECCION_FLORACION'
   | 'FERTILIZACION'
   | 'PODA'
   | 'CHAPEO_LIMPIEZA'
   | 'CONTROL_PLAGAS'
   | 'COSECHA_CORTE'
-  | 'RIEGO_RESIEMBRA';
+  | 'RIEGO_RESIEMBRA'
+  | (string & {});
 
 export interface FieldEvidencePhoto {
   id: string;
@@ -33,6 +42,12 @@ export interface FieldLogEntry {
   fertilizationDate?: string;
   expectedHarvestDate?: string;
   inputUsed?: string;
+  dose?: string;
+  costMxn?: number;
+  laborHours?: number;
+  workersCount?: number;
+  weatherCondition?: string;
+  customFields?: Record<string, unknown>;
   notes: string;
   photos: FieldEvidencePhoto[];
   syncStatus?: 'LOCAL_PENDING' | 'SYNCED' | 'LOCAL_ONLY' | string;
@@ -74,7 +89,15 @@ export interface ProducerFriendlyParcelSummary {
   needsPaperCheck: boolean;
 }
 
-export const FIELD_ACTIVITY_LABELS: Record<FieldActivityType, string> = {
+export const FIELD_ACTIVITY_LABELS: Record<string, string> = {
+  MANEJO_SOMBRA: 'Manejo de Sombra y Estratos',
+  PODA_CACAO: 'Poda de Cacao (Mantenimiento)',
+  DESMOMIFICACION_FITOSANITARIA: 'Desmomificación Fitosanitaria (Monilia/Escoba)',
+  FERTILIZACION_ORGANICA: 'Fertilización Orgánica / Bocashi',
+  CONTROL_MALEZAS: 'Control Mecánico de Malezas',
+  RIEGO_DRENAJE: 'Manejo de Riego y Drenajes',
+  APLICACION_BIOINSUMO: 'Aplicación de Bioinsumos / Caldos',
+  INSPECCION_FLORACION: 'Inspección de Floración y Mazorcas',
   FERTILIZACION: 'Fertilización y abono orgánico',
   PODA: 'Poda de formación y sombra',
   CHAPEO_LIMPIEZA: 'Chapeo y limpieza del terreno',
