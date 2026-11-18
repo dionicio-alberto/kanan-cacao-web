@@ -1213,6 +1213,13 @@ export interface AdminRolesPanelPayload {
   roles: import('@/types/adminDomain').EditableRoleDefinition[];
 }
 
+function normalizeRequesterRole(role?: string): string {
+  if (!role) return 'admin_astra';
+  const trimmed = role.trim().toLowerCase();
+  if (trimmed === 'admin' || trimmed === 'admin_astra') return 'admin_astra';
+  return role;
+}
+
 export async function fetchAdminRolesPanelLive(params: {
   requesterRole: string;
   accessToken?: string;
@@ -1221,7 +1228,9 @@ export async function fetchAdminRolesPanelLive(params: {
   if (params.accessToken) {
     headers.Authorization = `Bearer ${params.accessToken}`;
   }
-  const q = new URLSearchParams({ requester_role: params.requesterRole }).toString();
+  const q = new URLSearchParams({
+    requester_role: normalizeRequesterRole(params.requesterRole),
+  }).toString();
   const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/roles-panel?${q}`, {
     method: 'GET',
     headers,
@@ -1254,7 +1263,7 @@ export async function assignProfileRoleAdminLive(params: {
       headers,
       body: JSON.stringify({
         role_key: params.roleKey,
-        requester_role: params.requesterRole,
+        requester_role: normalizeRequesterRole(params.requesterRole),
         changed_by: params.changedBy,
       }),
     },
@@ -1292,7 +1301,7 @@ export async function saveRoleDefinitionAdminLive(params: {
         display_name: params.displayName,
         description: params.description,
         permissions: params.permissions,
-        requester_role: params.requesterRole,
+        requester_role: normalizeRequesterRole(params.requesterRole),
         changed_by: params.changedBy,
       }),
     },
@@ -1345,6 +1354,33 @@ export async function fetchFieldLogsLive(filters?: {
         ? String(e.expected_harvest_date || e.expectedHarvestDate)
         : undefined,
     inputUsed: e.input_used || e.inputUsed ? String(e.input_used || e.inputUsed) : undefined,
+    dose: e.dose ? String(e.dose) : undefined,
+    costMxn:
+      typeof e.cost_mxn === 'number'
+        ? e.cost_mxn
+        : typeof e.costMxn === 'number'
+          ? e.costMxn
+          : undefined,
+    laborHours:
+      typeof e.labor_hours === 'number'
+        ? e.labor_hours
+        : typeof e.laborHours === 'number'
+          ? e.laborHours
+          : undefined,
+    workersCount:
+      typeof e.workers_count === 'number'
+        ? e.workers_count
+        : typeof e.workersCount === 'number'
+          ? e.workersCount
+          : undefined,
+    weatherCondition:
+      e.weather_condition || e.weatherCondition
+        ? String(e.weather_condition || e.weatherCondition)
+        : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
     notes: String(e.notes || ''),
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
@@ -1366,6 +1402,12 @@ export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEn
     fertilization_date: entry.fertilizationDate,
     expected_harvest_date: entry.expectedHarvestDate,
     input_used: entry.inputUsed,
+    dose: entry.dose,
+    cost_mxn: entry.costMxn,
+    labor_hours: entry.laborHours,
+    workers_count: entry.workersCount,
+    weather_condition: entry.weatherCondition,
+    custom_fields: entry.customFields,
     notes: entry.notes,
     photos: entry.photos,
     created_at_iso: entry.createdAtIso,
@@ -1405,6 +1447,15 @@ export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEn
         ? String(e.expected_harvest_date || e.expectedHarvestDate)
         : undefined,
     inputUsed: e.input_used || e.inputUsed ? String(e.input_used || e.inputUsed) : undefined,
+    dose: e.dose ? String(e.dose) : undefined,
+    costMxn: typeof e.cost_mxn === 'number' ? e.cost_mxn : undefined,
+    laborHours: typeof e.labor_hours === 'number' ? e.labor_hours : undefined,
+    workersCount: typeof e.workers_count === 'number' ? e.workers_count : undefined,
+    weatherCondition: e.weather_condition ? String(e.weather_condition) : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
     notes: String(e.notes || ''),
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
@@ -1412,4 +1463,294 @@ export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEn
     syncStatus: 'SYNCED',
     createdAtIso: String(e.created_at_iso || e.createdAtIso || new Date().toISOString()),
   };
+}
+
+export async function updateFieldLogLive(
+  id: string,
+  entry: Partial<FieldLogEntry>,
+): Promise<FieldLogEntry> {
+  const payload: Record<string, unknown> = {};
+  if (entry.activityType) payload.activity_type = entry.activityType;
+  if (entry.activityLabel) payload.activity_label = entry.activityLabel;
+  if (entry.performedDate) payload.performed_date = entry.performedDate;
+  if (entry.fertilizationDate !== undefined) payload.fertilization_date = entry.fertilizationDate;
+  if (entry.inputUsed !== undefined) payload.input_used = entry.inputUsed;
+  if (entry.dose !== undefined) payload.dose = entry.dose;
+  if (entry.costMxn !== undefined) payload.cost_mxn = entry.costMxn;
+  if (entry.laborHours !== undefined) payload.labor_hours = entry.laborHours;
+  if (entry.workersCount !== undefined) payload.workers_count = entry.workersCount;
+  if (entry.weatherCondition !== undefined) payload.weather_condition = entry.weatherCondition;
+  if (entry.customFields !== undefined) payload.custom_fields = entry.customFields;
+  if (entry.notes !== undefined) payload.notes = entry.notes;
+  if (entry.photos !== undefined) payload.photos = entry.photos;
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/logbook/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `Error HTTP ${res.status} al actualizar la bitácora.`);
+  }
+  const data = (await res.json()) as { status: string; entry: Record<string, unknown> };
+  const e = data.entry;
+  return {
+    id: String(e.id),
+    parcelId: String(e.parcel_id || e.parcelId),
+    parcelName: String(e.parcel_name || e.parcelName),
+    producerId: e.producer_id ? String(e.producer_id) : undefined,
+    producerName: e.producer_name ? String(e.producer_name) : undefined,
+    activityType: (e.activity_type ||
+      e.activityType) as import('@/services/producerLogbookService').FieldActivityType,
+    activityLabel: String(e.activity_label || e.activityLabel),
+    performedDate: String(e.performed_date || e.performedDate),
+    fertilizationDate: e.fertilization_date ? String(e.fertilization_date) : undefined,
+    inputUsed: e.input_used ? String(e.input_used) : undefined,
+    dose: e.dose ? String(e.dose) : undefined,
+    costMxn: typeof e.cost_mxn === 'number' ? e.cost_mxn : undefined,
+    laborHours: typeof e.labor_hours === 'number' ? e.labor_hours : undefined,
+    workersCount: typeof e.workers_count === 'number' ? e.workers_count : undefined,
+    weatherCondition: e.weather_condition ? String(e.weather_condition) : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
+    notes: String(e.notes || ''),
+    photos: Array.isArray(e.photos)
+      ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
+      : [],
+    syncStatus: 'SYNCED',
+    createdAtIso: String(e.created_at_iso || e.createdAtIso || new Date().toISOString()),
+  };
+}
+
+export async function deleteFieldLogLive(id: string): Promise<boolean> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/logbook/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `Error HTTP ${res.status} al eliminar de la bitácora.`);
+  }
+  return true;
+}
+
+export async function fetchLogbookConfigLive(): Promise<
+  import('@/types/adminDomain').LogbookFullConfigBundle
+> {
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/logbook/config`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar configuración de bitácora.`);
+  }
+  return res.json();
+}
+
+export async function fetchAdminLogbookConfigLive(options?: {
+  requesterRole?: string;
+  accessToken?: string;
+}): Promise<import('@/types/adminDomain').LogbookFullConfigBundle> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options?.accessToken) {
+    headers.Authorization = `Bearer ${options.accessToken}`;
+  }
+  const role = normalizeRequesterRole(options?.requesterRole);
+  const qs = `?requester_role=${encodeURIComponent(role)}`;
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/config${qs}`, {
+    method: 'GET',
+    headers,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      err.detail ?? `Error HTTP ${res.status} al cargar configuración admin de bitácora.`,
+    );
+  }
+  return res.json();
+}
+
+export async function updateLogbookTogglesAdminLive(
+  toggles: Partial<import('@/types/adminDomain').LogbookFeatureToggles>,
+  options?: { requesterRole?: string; accessToken?: string; changedBy?: string },
+): Promise<import('@/types/adminDomain').LogbookFullConfigBundle> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/toggles`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      toggles,
+      requester_role: normalizeRequesterRole(options?.requesterRole),
+      changed_by: options?.changedBy || 'Administrador ASTRA',
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al guardar preferencias de bitácora.`);
+  }
+  return res.json();
+}
+
+export async function upsertLogbookActivityAdminLive(
+  activity: Partial<import('@/types/adminDomain').LogbookActivityCatalogItem>,
+  options?: { requesterRole?: string; accessToken?: string; changedBy?: string },
+): Promise<import('@/types/adminDomain').LogbookFullConfigBundle> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/activities`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      activity,
+      requester_role: normalizeRequesterRole(options?.requesterRole),
+      changed_by: options?.changedBy || 'Administrador ASTRA',
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al guardar actividad en el catálogo.`);
+  }
+  return res.json();
+}
+
+export async function deleteLogbookActivityAdminLive(
+  activityKey: string,
+  options?: { requesterRole?: string; accessToken?: string },
+): Promise<{
+  action: 'ARCHIVED' | 'DELETED';
+  activity_key: string;
+  referenced_logs_count: number;
+  full_config: import('@/types/adminDomain').LogbookFullConfigBundle;
+}> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+  const role = normalizeRequesterRole(options?.requesterRole);
+  const qs = `?requester_role=${encodeURIComponent(role)}`;
+
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/activities/${encodeURIComponent(activityKey)}${qs}`,
+    { method: 'DELETE', headers },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al eliminar o archivar la actividad.`);
+  }
+  return res.json();
+}
+
+export async function upsertLogbookInputAdminLive(
+  inputItem: Partial<import('@/types/adminDomain').LogbookInputCatalogItem>,
+  options?: { requesterRole?: string; accessToken?: string; changedBy?: string },
+): Promise<import('@/types/adminDomain').LogbookFullConfigBundle> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/inputs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      input_item: inputItem,
+      requester_role: normalizeRequesterRole(options?.requesterRole),
+      changed_by: options?.changedBy || 'Administrador ASTRA',
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al guardar insumo sugerido.`);
+  }
+  return res.json();
+}
+
+export async function deleteLogbookInputAdminLive(
+  inputKey: string,
+  options?: { requesterRole?: string; accessToken?: string },
+): Promise<{
+  action: 'ARCHIVED' | 'DELETED';
+  input_key: string;
+  referenced_logs_count: number;
+  full_config: import('@/types/adminDomain').LogbookFullConfigBundle;
+}> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+  const role = normalizeRequesterRole(options?.requesterRole);
+  const qs = `?requester_role=${encodeURIComponent(role)}`;
+
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/inputs/${encodeURIComponent(inputKey)}${qs}`,
+    { method: 'DELETE', headers },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al eliminar o archivar el insumo.`);
+  }
+  return res.json();
+}
+
+export async function upsertLogbookCustomFieldAdminLive(
+  customField: Partial<import('@/types/adminDomain').LogbookCustomFieldItem>,
+  options?: { requesterRole?: string; accessToken?: string; changedBy?: string },
+): Promise<import('@/types/adminDomain').LogbookFullConfigBundle> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/custom-fields`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      custom_field: customField,
+      requester_role: normalizeRequesterRole(options?.requesterRole),
+      changed_by: options?.changedBy || 'Administrador ASTRA',
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al guardar campo personalizado.`);
+  }
+  return res.json();
+}
+
+export async function deleteLogbookCustomFieldAdminLive(
+  fieldKey: string,
+  options?: { requesterRole?: string; accessToken?: string },
+): Promise<{
+  action: 'ARCHIVED' | 'DELETED';
+  field_key: string;
+  referenced_logs_count: number;
+  full_config: import('@/types/adminDomain').LogbookFullConfigBundle;
+}> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options?.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
+  const role = normalizeRequesterRole(options?.requesterRole);
+  const qs = `?requester_role=${encodeURIComponent(role)}`;
+
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/admin/logbook/custom-fields/${encodeURIComponent(fieldKey)}${qs}`,
+    { method: 'DELETE', headers },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Error HTTP ${res.status} al eliminar campo personalizado.`);
+  }
+  return res.json();
 }

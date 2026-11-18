@@ -36,7 +36,7 @@ export default function ProducerTopNav({
   onSignOut,
 }: ProducerTopNavProps) {
   const navItems =
-    operatorProfile.role === 'admin_astra'
+    operatorProfile.role === 'admin_astra' || operatorProfile.role === 'ADMIN'
       ? [...BASE_NAV_ITEMS, { id: 'admin_panel' as const, label: 'Control Admin', icon: '🛡️' }]
       : BASE_NAV_ITEMS;
 
