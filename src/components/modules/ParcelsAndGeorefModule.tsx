@@ -1074,7 +1074,12 @@ export default function ParcelsAndGeorefModule({
                 <div>
                   <label
                     htmlFor="edit-parcel-name"
-                    style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
                   >
                     Nombre de la Parcela:
                   </label>
@@ -1093,7 +1098,12 @@ export default function ParcelsAndGeorefModule({
                 <div>
                   <label
                     htmlFor="edit-producer-name"
-                    style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
                   >
                     Nombre del Productor:
                   </label>
@@ -1113,7 +1123,12 @@ export default function ParcelsAndGeorefModule({
                   <div>
                     <label
                       htmlFor="edit-municipality"
-                      style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
                     >
                       Municipio:
                     </label>
@@ -1135,7 +1150,12 @@ export default function ParcelsAndGeorefModule({
                   <div>
                     <label
                       htmlFor="edit-area"
-                      style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
                     >
                       Superficie (ha):
                     </label>
@@ -1153,12 +1173,17 @@ export default function ParcelsAndGeorefModule({
                 </div>
 
                 {updateError && (
-                  <div role="alert" style={{ color: '#B91C1C', fontSize: '0.82rem', fontWeight: 700 }}>
+                  <div
+                    role="alert"
+                    style={{ color: '#B91C1C', fontSize: '0.82rem', fontWeight: 700 }}
+                  >
                     ⚠️ {updateError}
                   </div>
                 )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}
+                >
                   <button
                     type="button"
                     onClick={() => setIsEditModalOpen(false)}
@@ -1226,7 +1251,14 @@ export default function ParcelsAndGeorefModule({
                 🗑️ Confirmar Eliminación de Parcela
               </h3>
 
-              <p style={{ fontSize: '0.86rem', color: T.colors.textPrimary, lineHeight: 1.5, margin: '0 0 14px' }}>
+              <p
+                style={{
+                  fontSize: '0.86rem',
+                  color: T.colors.textPrimary,
+                  lineHeight: 1.5,
+                  margin: '0 0 14px',
+                }}
+              >
                 ¿Estás seguro de que deseas eliminar permanentemente la parcela{' '}
                 <strong>{selectedParcel.parcelName || selectedParcel.producerName}</strong> (Folio:{' '}
                 <code>{selectedParcel.parcelId}</code>)?
@@ -1243,13 +1275,20 @@ export default function ParcelsAndGeorefModule({
                   color: '#991B1B',
                 }}
               >
-                ⚠️ <strong>Aviso Importante:</strong> Esta acción eliminará el polígono geodésico y sus registros de Supabase PostGIS y del Geo-Engine. Al sincronizar la app móvil, esta parcela será removida automáticamente del dispositivo.
+                ⚠️ <strong>Aviso Importante:</strong> Esta acción eliminará el polígono geodésico y
+                sus registros de Supabase PostGIS y del Geo-Engine. Al sincronizar la app móvil,
+                esta parcela será removida automáticamente del dispositivo.
               </div>
 
               <div style={{ marginBottom: 14 }}>
                 <label
                   htmlFor="delete-confirm-input"
-                  style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}
+                  style={{
+                    display: 'block',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    marginBottom: 4,
+                  }}
                 >
                   Para confirmar, escribe <code>eliminar</code> abajo:
                 </label>
@@ -1266,7 +1305,15 @@ export default function ParcelsAndGeorefModule({
               </div>
 
               {deleteError && (
-                <div role="alert" style={{ color: '#B91C1C', fontSize: '0.82rem', fontWeight: 700, marginBottom: 12 }}>
+                <div
+                  role="alert"
+                  style={{
+                    color: '#B91C1C',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    marginBottom: 12,
+                  }}
+                >
                   ⚠️ {deleteError}
                 </div>
               )}
@@ -1292,7 +1339,9 @@ export default function ParcelsAndGeorefModule({
                     borderColor: '#DC2626',
                     fontWeight: 700,
                     cursor:
-                      deleteConfirmText.trim().toLowerCase() === 'eliminar' ? 'pointer' : 'not-allowed',
+                      deleteConfirmText.trim().toLowerCase() === 'eliminar'
+                        ? 'pointer'
+                        : 'not-allowed',
                   }}
                 >
                   {isDeleting ? 'Eliminando...' : '🗑️ Eliminar Definitivamente'}

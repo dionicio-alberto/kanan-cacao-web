@@ -1054,13 +1054,10 @@ export async function deleteParcelAdminLive(
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
-  const res = await fetch(
-    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}`,
-    {
-      method: 'DELETE',
-      headers,
-    },
-  );
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}`, {
+    method: 'DELETE',
+    headers,
+  });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     throw new Error(errBody.detail ?? `No se pudo eliminar la parcela: HTTP ${res.status}`);
