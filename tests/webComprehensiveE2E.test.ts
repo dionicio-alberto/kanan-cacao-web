@@ -242,11 +242,11 @@ describe('Web Comprehensive Test Suite: Validación E2E de Parcelas y Bitácora'
       const mockFile = new File(['fake content'], 'escritura_parcela.pdf', {
         type: 'application/pdf',
       });
-      const uploadedDoc = await uploadParcelDocumentLive({
-        parcelId: 'parcel-101',
-        documentType: 'TITULO_PROPIEDAD',
-        file: mockFile,
-      });
+      const uploadedDoc = await uploadParcelDocumentLive(
+        'parcel-101',
+        'TITULO_PROPIEDAD',
+        mockFile,
+      );
 
       expect(uploadedDoc.id).toBe('doc-uploaded-99');
       expect(uploadedDoc.file_name).toBe('escritura_parcela.pdf');
@@ -264,15 +264,22 @@ describe('Web Comprehensive Test Suite: Validación E2E de Parcelas y Bitácora'
         parcelName: 'Cacaotal El Porvenir',
         producerId: 'PROD-01',
         producerName: 'Mateo Hernández',
-        activityType: 'PODA_SANITARIA',
+        activityType: 'PODA',
         performedDate: '2026-11-18',
         notes: 'Poda de ramas bajas y deschuponado general',
-        photos: ['data:image/jpeg;base64,mockfoto1'],
+        photos: [
+          {
+            id: 'photo-1',
+            fileName: 'mockfoto1.jpg',
+            previewDataUrl: 'data:image/jpeg;base64,mockfoto1',
+            capturedAtIso: '2026-11-18T10:00:00.000Z',
+          },
+        ],
       });
 
       expect(newEntry.id).toBeTruthy();
-      expect(newEntry.activityType).toBe('PODA_SANITARIA');
-      expect(newEntry.activityLabel).toBe(FIELD_ACTIVITY_LABELS.PODA_SANITARIA);
+      expect(newEntry.activityType).toBe('PODA');
+      expect(newEntry.activityLabel).toBe(FIELD_ACTIVITY_LABELS.PODA);
       expect(newEntry.photos.length).toBe(1);
     });
 
