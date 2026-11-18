@@ -97,12 +97,22 @@ export interface WebCarbonClusterResult {
  * HU-05: Evalúa el bloqueo automático del productor cuando existe remoción
  * de acahuales post-2020 sin permiso CUSTF de SEMARNAT verificado por ASTRA.
  */
-export function evaluateCustfAdminCompliance(parcel: ParcelAdminOverview): CustfAdminAuditSummary {
-  const isProducerBlocked = parcel.acahualRemovalPost2020 && !parcel.hasVerifiedCustfPermit;
+export function evaluateCustfAdminCompliance(
+  parcel?: ParcelAdminOverview | null,
+): CustfAdminAuditSummary {
+  if (!parcel) {
+    return {
+      parcelId: 'sin-parcela',
+      producerId: 'sin-productor',
+      isProducerBlocked: false,
+      blockReason: null,
+    };
+  }
+  const isProducerBlocked = Boolean(parcel.acahualRemovalPost2020 && !parcel.hasVerifiedCustfPermit);
 
   return {
-    parcelId: parcel.parcelId,
-    producerId: parcel.producerId,
+    parcelId: parcel.parcelId || 'sin-parcela',
+    producerId: parcel.producerId || 'sin-productor',
     isProducerBlocked,
     blockReason: isProducerBlocked
       ? 'HU-05: Productor bloqueado automáticamente por remoción de acahuales post-2020 sin CUSTF de SEMARNAT.'

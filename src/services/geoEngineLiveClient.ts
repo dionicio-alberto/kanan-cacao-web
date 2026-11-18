@@ -1409,6 +1409,7 @@ export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEn
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
       : [],
+    syncStatus: 'SYNCED',
     createdAtIso: String(e.created_at_iso || e.createdAtIso || new Date().toISOString()),
   };
 }
