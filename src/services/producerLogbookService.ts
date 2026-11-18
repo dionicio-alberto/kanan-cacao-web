@@ -35,6 +35,7 @@ export interface FieldLogEntry {
   inputUsed?: string;
   notes: string;
   photos: FieldEvidencePhoto[];
+  syncStatus?: 'LOCAL_PENDING' | 'SYNCED' | 'LOCAL_ONLY' | string;
   createdAtIso: string;
 }
 
@@ -83,8 +84,20 @@ export const FIELD_ACTIVITY_LABELS: Record<FieldActivityType, string> = {
 };
 
 export function getProducerFriendlyParcelStatus(
-  parcel: ParcelAdminOverview,
+  parcel?: ParcelAdminOverview | null,
 ): ProducerFriendlyParcelSummary {
+  if (!parcel) {
+    return {
+      forestStatusLabel: 'Monte y parcela al día (Sin tala reciente)',
+      forestStatusTone: 'verde',
+      canopyHealthLabel: 'Cacaotal sano y frondoso',
+      canopyHealthHint: 'Follaje con buen vigor y cobertura verde estable.',
+      papersStatusLabel: 'Papeles y constancia de terreno en regla',
+      papersAreClear: true,
+      needsPaperCheck: false,
+    };
+  }
+
   const compliance = evaluateCustfAdminCompliance(parcel);
 
   let forestStatusLabel = 'Monte y parcela al día (Sin tala reciente)';
@@ -120,7 +133,7 @@ export function getProducerFriendlyParcelStatus(
     canopyHealthHint,
     papersStatusLabel,
     papersAreClear,
-    needsPaperCheck: parcel.acahualRemovalPost2020,
+    needsPaperCheck: Boolean(parcel.acahualRemovalPost2020),
   };
 }
 
@@ -419,6 +432,33 @@ export function getNextTimelapsePeriodKey(
   const idx = orderedPeriodKeys.indexOf(currentPeriodKey);
   const nextIdx = idx === -1 ? 0 : (idx + 1) % orderedPeriodKeys.length;
   return orderedPeriodKeys[nextIdx];
+}
+
+export function filterLogEntriesByProducerOrParcel(
+  entries: FieldLogEntry[],
+  query: string,
+): FieldLogEntry[] {
+  if (!query || !query.trim()) return entries;
+  const q = query.toLowerCase().trim();
+  return entries.filter(
+    (e) =>
+      e.parcelId.toLowerCase().includes(q) ||
+      e.parcelName.toLowerCase().includes(q) ||
+      (e.producerId && e.producerId.toLowerCase().includes(q)) ||
+      (e.producerName && e.producerName.toLowerCase().includes(q)),
+  );
+}
+
+export function filterLogEntriesByDateRange(
+  entries: FieldLogEntry[],
+  startDate?: string,
+  endDate?: string,
+): FieldLogEntry[] {
+  return entries.filter((e) => {
+    if (startDate && e.performedDate < startDate) return false;
+    if (endDate && e.performedDate > endDate) return false;
+    return true;
+  });
 }
 
 export function canAdminEditRegistrationDate(role?: string | null): boolean {
