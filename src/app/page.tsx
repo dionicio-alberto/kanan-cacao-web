@@ -182,11 +182,13 @@ export default function KananCacaoPortalPage() {
   const filteredParcel = selectedParcelId
     ? (parcels.find(
         (p) =>
-          p.parcelId === selectedParcelId ||
-          (p.parcelName && p.parcelName.toLowerCase().includes(selectedParcelId.toLowerCase())),
+          p?.parcelId === selectedParcelId ||
+          (p?.parcelName &&
+            typeof p.parcelName === 'string' &&
+            p.parcelName.toLowerCase().includes(selectedParcelId.toLowerCase())),
       ) ?? null)
     : null;
-  const fallbackParcel = filteredParcel ?? parcels[0];
+  const fallbackParcel = filteredParcel ?? parcels[0] ?? INITIAL_PARCELS[0];
 
   const handleSignOut = async () => {
     await signOutSupabaseSession();
