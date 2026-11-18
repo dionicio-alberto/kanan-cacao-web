@@ -461,7 +461,6 @@ export function filterLogEntriesByDateRange(
   });
 }
 
-
 export function canAdminEditRegistrationDate(role?: string | null): boolean {
   const clean = (role || '').trim().toLowerCase();
   return clean === 'admin_astra' || clean === 'admin';

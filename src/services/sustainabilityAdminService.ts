@@ -108,7 +108,9 @@ export function evaluateCustfAdminCompliance(
       blockReason: null,
     };
   }
-  const isProducerBlocked = Boolean(parcel.acahualRemovalPost2020 && !parcel.hasVerifiedCustfPermit);
+  const isProducerBlocked = Boolean(
+    parcel.acahualRemovalPost2020 && !parcel.hasVerifiedCustfPermit,
+  );
 
   return {
     parcelId: parcel.parcelId || 'sin-parcela',

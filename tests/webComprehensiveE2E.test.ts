@@ -1,6 +1,5 @@
 import { INITIAL_PARCELS } from '@/services/demoParcels';
 import {
-  fetchFieldLogsLive,
   fetchParcelDocumentsLive,
   fetchPersistedParcelsWithMeta,
   getParcelDocumentDownloadUrl,
@@ -12,7 +11,6 @@ import {
   buildClosedPolygonFromCenter,
   createFieldLogEntry,
   FIELD_ACTIVITY_LABELS,
-  FieldActivityType,
   FieldLogEntry,
   filterLogEntriesByDateRange,
   filterLogEntriesByProducerOrParcel,
@@ -24,10 +22,7 @@ import {
   AuthenticatedOperatorProfile,
   resolveRoleFromEmailOrProfile,
 } from '@/services/supabaseClient';
-import {
-  evaluateCustfAdminCompliance,
-  ParcelAdminOverview,
-} from '@/services/sustainabilityAdminService';
+import { evaluateCustfAdminCompliance } from '@/services/sustainabilityAdminService';
 
 describe('Web Comprehensive Test Suite: Validación E2E de Parcelas y Bitácora', () => {
   // =========================================================================
