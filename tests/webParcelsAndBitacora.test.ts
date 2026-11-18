@@ -16,11 +16,13 @@ describe('Web Test Suite: Parcelas y Georreferencia', () => {
       expect(parcel.parcelId).toBeTruthy();
       expect(parcel.producerName).toBeTruthy();
       expect(parcel.areaHectares).toBeGreaterThan(0);
-      expect(parcel.coordinates.length).toBeGreaterThanOrEqual(4);
+      expect(parcel.coordinates).toBeDefined();
+      const coords = parcel.coordinates!;
+      expect(coords.length).toBeGreaterThanOrEqual(4);
 
       // El polígono debe estar cerrado (primer vértice igual al último)
-      const first = parcel.coordinates[0];
-      const last = parcel.coordinates[parcel.coordinates.length - 1];
+      const first = coords[0];
+      const last = coords[coords.length - 1];
       expect(first[0]).toBe(last[0]);
       expect(first[1]).toBe(last[1]);
     }
