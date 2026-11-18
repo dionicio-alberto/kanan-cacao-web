@@ -1228,7 +1228,9 @@ export async function fetchAdminRolesPanelLive(params: {
   if (params.accessToken) {
     headers.Authorization = `Bearer ${params.accessToken}`;
   }
-  const q = new URLSearchParams({ requester_role: normalizeRequesterRole(params.requesterRole) }).toString();
+  const q = new URLSearchParams({
+    requester_role: normalizeRequesterRole(params.requesterRole),
+  }).toString();
   const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/admin/roles-panel?${q}`, {
     method: 'GET',
     headers,
@@ -1353,11 +1355,32 @@ export async function fetchFieldLogsLive(filters?: {
         : undefined,
     inputUsed: e.input_used || e.inputUsed ? String(e.input_used || e.inputUsed) : undefined,
     dose: e.dose ? String(e.dose) : undefined,
-    costMxn: typeof e.cost_mxn === 'number' ? e.cost_mxn : (typeof e.costMxn === 'number' ? e.costMxn : undefined),
-    laborHours: typeof e.labor_hours === 'number' ? e.labor_hours : (typeof e.laborHours === 'number' ? e.laborHours : undefined),
-    workersCount: typeof e.workers_count === 'number' ? e.workers_count : (typeof e.workersCount === 'number' ? e.workersCount : undefined),
-    weatherCondition: e.weather_condition || e.weatherCondition ? String(e.weather_condition || e.weatherCondition) : undefined,
-    customFields: e.custom_fields && typeof e.custom_fields === 'object' ? (e.custom_fields as Record<string, unknown>) : undefined,
+    costMxn:
+      typeof e.cost_mxn === 'number'
+        ? e.cost_mxn
+        : typeof e.costMxn === 'number'
+          ? e.costMxn
+          : undefined,
+    laborHours:
+      typeof e.labor_hours === 'number'
+        ? e.labor_hours
+        : typeof e.laborHours === 'number'
+          ? e.laborHours
+          : undefined,
+    workersCount:
+      typeof e.workers_count === 'number'
+        ? e.workers_count
+        : typeof e.workersCount === 'number'
+          ? e.workersCount
+          : undefined,
+    weatherCondition:
+      e.weather_condition || e.weatherCondition
+        ? String(e.weather_condition || e.weatherCondition)
+        : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
     notes: String(e.notes || ''),
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
@@ -1429,7 +1452,10 @@ export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEn
     laborHours: typeof e.labor_hours === 'number' ? e.labor_hours : undefined,
     workersCount: typeof e.workers_count === 'number' ? e.workers_count : undefined,
     weatherCondition: e.weather_condition ? String(e.weather_condition) : undefined,
-    customFields: e.custom_fields && typeof e.custom_fields === 'object' ? (e.custom_fields as Record<string, unknown>) : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
     notes: String(e.notes || ''),
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
@@ -1489,7 +1515,10 @@ export async function updateFieldLogLive(
     laborHours: typeof e.labor_hours === 'number' ? e.labor_hours : undefined,
     workersCount: typeof e.workers_count === 'number' ? e.workers_count : undefined,
     weatherCondition: e.weather_condition ? String(e.weather_condition) : undefined,
-    customFields: e.custom_fields && typeof e.custom_fields === 'object' ? (e.custom_fields as Record<string, unknown>) : undefined,
+    customFields:
+      e.custom_fields && typeof e.custom_fields === 'object'
+        ? (e.custom_fields as Record<string, unknown>)
+        : undefined,
     notes: String(e.notes || ''),
     photos: Array.isArray(e.photos)
       ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
@@ -1540,7 +1569,9 @@ export async function fetchAdminLogbookConfigLive(options?: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? `Error HTTP ${res.status} al cargar configuración admin de bitácora.`);
+    throw new Error(
+      err.detail ?? `Error HTTP ${res.status} al cargar configuración admin de bitácora.`,
+    );
   }
   return res.json();
 }

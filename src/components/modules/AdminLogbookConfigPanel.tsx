@@ -39,9 +39,7 @@ const DEFAULT_TOGGLES: LogbookFeatureToggles = {
   min_required_photos: 0,
 };
 
-export default function AdminLogbookConfigPanel({
-  operatorProfile,
-}: AdminLogbookConfigPanelProps) {
+export default function AdminLogbookConfigPanel({ operatorProfile }: AdminLogbookConfigPanelProps) {
   const [configBundle, setConfigBundle] = useState<LogbookFullConfigBundle | null>(null);
   const [toggles, setToggles] = useState<LogbookFeatureToggles>(DEFAULT_TOGGLES);
   const [loading, setLoading] = useState(true);
@@ -51,9 +49,8 @@ export default function AdminLogbookConfigPanel({
 
   // Modal / Form state for Activity
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<Partial<LogbookActivityCatalogItem> | null>(
-    null,
-  );
+  const [editingActivity, setEditingActivity] =
+    useState<Partial<LogbookActivityCatalogItem> | null>(null);
   const [savingActivity, setSavingActivity] = useState(false);
 
   // Modal / Form state for Input
@@ -109,9 +106,7 @@ export default function AdminLogbookConfigPanel({
       );
     } catch (err) {
       setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'Error al actualizar las opciones de la bitácora.',
+        err instanceof Error ? err.message : 'Error al actualizar las opciones de la bitácora.',
       );
     } finally {
       setSavingToggles(false);
@@ -138,9 +133,7 @@ export default function AdminLogbookConfigPanel({
       setEditingActivity(null);
       setStatusMsg(`Actividad "${editingActivity.name}" guardada en el catálogo.`);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Error al guardar la actividad.',
-      );
+      setErrorMsg(err instanceof Error ? err.message : 'Error al guardar la actividad.');
     } finally {
       setSavingActivity(false);
     }
@@ -166,9 +159,7 @@ export default function AdminLogbookConfigPanel({
         setStatusMsg(`Actividad "${act.name}" eliminada permanentemente del catálogo.`);
       }
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Error al eliminar la actividad.',
-      );
+      setErrorMsg(err instanceof Error ? err.message : 'Error al eliminar la actividad.');
     }
   };
 
@@ -192,9 +183,7 @@ export default function AdminLogbookConfigPanel({
       setEditingInput(null);
       setStatusMsg(`Insumo "${editingInput.name}" guardado.`);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Error al guardar el insumo.',
-      );
+      setErrorMsg(err instanceof Error ? err.message : 'Error al guardar el insumo.');
     } finally {
       setSavingInput(false);
     }
@@ -238,9 +227,7 @@ export default function AdminLogbookConfigPanel({
       setEditingField(null);
       setStatusMsg(`Campo personalizado "${editingField.label}" guardado.`);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Error al guardar el campo personalizado.',
-      );
+      setErrorMsg(err instanceof Error ? err.message : 'Error al guardar el campo personalizado.');
     } finally {
       setSavingField(false);
     }
@@ -323,13 +310,22 @@ export default function AdminLogbookConfigPanel({
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
           <div>
             <h2 style={{ margin: 0, fontSize: '1.2rem', color: T.colors.primaryGreen }}>
               ⚙️ Funciones e Interruptores Activos en Bitácora
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: T.colors.textSecondary }}>
-              Controla qué funciones y campos están visibles para los productores tanto en la versión Web como en la App Móvil.
+              Controla qué funciones y campos están visibles para los productores tanto en la
+              versión Web como en la App Móvil.
             </p>
           </div>
           <button
@@ -352,12 +348,20 @@ export default function AdminLogbookConfigPanel({
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 14,
+          }}
+        >
           {/* Toggle Mano de obra y costos */}
           <div
             style={{
               padding: 14,
-              backgroundColor: toggles.enable_labor_and_costs ? '#F0FDF4' : T.colors.backgroundPrimary,
+              backgroundColor: toggles.enable_labor_and_costs
+                ? '#F0FDF4'
+                : T.colors.backgroundPrimary,
               border: `1.5px solid ${toggles.enable_labor_and_costs ? '#86EFAC' : T.colors.borderSubtle}`,
               borderRadius: 10,
               display: 'flex',
@@ -377,8 +381,15 @@ export default function AdminLogbookConfigPanel({
               type="checkbox"
               aria-label="Activar registro de mano de obra y costos"
               checked={toggles.enable_labor_and_costs}
-              onChange={(e) => setToggles((prev) => ({ ...prev, enable_labor_and_costs: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              onChange={(e) =>
+                setToggles((prev) => ({ ...prev, enable_labor_and_costs: e.target.checked }))
+              }
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
 
@@ -406,8 +417,15 @@ export default function AdminLogbookConfigPanel({
               type="checkbox"
               aria-label="Activar registro de insumos"
               checked={toggles.enable_inputs_used}
-              onChange={(e) => setToggles((prev) => ({ ...prev, enable_inputs_used: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              onChange={(e) =>
+                setToggles((prev) => ({ ...prev, enable_inputs_used: e.target.checked }))
+              }
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
 
@@ -436,7 +454,12 @@ export default function AdminLogbookConfigPanel({
               aria-label="Activar dosis de aplicación"
               checked={toggles.enable_doses}
               onChange={(e) => setToggles((prev) => ({ ...prev, enable_doses: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
 
@@ -465,7 +488,12 @@ export default function AdminLogbookConfigPanel({
               aria-label="Activar fotos de evidencia"
               checked={toggles.enable_photos}
               onChange={(e) => setToggles((prev) => ({ ...prev, enable_photos: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
 
@@ -473,7 +501,9 @@ export default function AdminLogbookConfigPanel({
           <div
             style={{
               padding: 14,
-              backgroundColor: toggles.enable_weather_conditions ? '#F0FDF4' : T.colors.backgroundPrimary,
+              backgroundColor: toggles.enable_weather_conditions
+                ? '#F0FDF4'
+                : T.colors.backgroundPrimary,
               border: `1.5px solid ${toggles.enable_weather_conditions ? '#86EFAC' : T.colors.borderSubtle}`,
               borderRadius: 10,
               display: 'flex',
@@ -493,8 +523,15 @@ export default function AdminLogbookConfigPanel({
               type="checkbox"
               aria-label="Activar condición climática"
               checked={toggles.enable_weather_conditions}
-              onChange={(e) => setToggles((prev) => ({ ...prev, enable_weather_conditions: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              onChange={(e) =>
+                setToggles((prev) => ({ ...prev, enable_weather_conditions: e.target.checked }))
+              }
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
 
@@ -502,7 +539,9 @@ export default function AdminLogbookConfigPanel({
           <div
             style={{
               padding: 14,
-              backgroundColor: toggles.enable_custom_fields ? '#F0FDF4' : T.colors.backgroundPrimary,
+              backgroundColor: toggles.enable_custom_fields
+                ? '#F0FDF4'
+                : T.colors.backgroundPrimary,
               border: `1.5px solid ${toggles.enable_custom_fields ? '#86EFAC' : T.colors.borderSubtle}`,
               borderRadius: 10,
               display: 'flex',
@@ -522,8 +561,15 @@ export default function AdminLogbookConfigPanel({
               type="checkbox"
               aria-label="Activar campos personalizados"
               checked={toggles.enable_custom_fields}
-              onChange={(e) => setToggles((prev) => ({ ...prev, enable_custom_fields: e.target.checked }))}
-              style={{ width: 22, height: 22, accentColor: T.colors.primaryGreen, cursor: 'pointer' }}
+              onChange={(e) =>
+                setToggles((prev) => ({ ...prev, enable_custom_fields: e.target.checked }))
+              }
+              style={{
+                width: 22,
+                height: 22,
+                accentColor: T.colors.primaryGreen,
+                cursor: 'pointer',
+              }}
             />
           </div>
         </div>
@@ -540,13 +586,22 @@ export default function AdminLogbookConfigPanel({
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
           <div>
             <h2 style={{ margin: 0, fontSize: '1.2rem', color: T.colors.primaryGreen }}>
               📋 Catálogo de Actividades Agronómicas ({activities.length})
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: T.colors.textSecondary }}>
-              Activa, desactiva, edita o agrega opciones de trabajo parcelario. La cosecha y el acopio se gestionan de forma independiente en la mesa de recepción.
+              Activa, desactiva, edita o agrega opciones de trabajo parcelario. La cosecha y el
+              acopio se gestionan de forma independiente en la mesa de recepción.
             </p>
           </div>
           <button
@@ -589,8 +644,8 @@ export default function AdminLogbookConfigPanel({
                 backgroundColor: act.is_archived
                   ? '#F9FAFB'
                   : act.is_active
-                  ? T.colors.backgroundPrimary
-                  : '#FFFBEB',
+                    ? T.colors.backgroundPrimary
+                    : '#FFFBEB',
                 border: `1px solid ${act.is_archived ? '#E5E7EB' : T.colors.borderSubtle}`,
                 borderRadius: 10,
                 padding: '12px 16px',
@@ -606,9 +661,7 @@ export default function AdminLogbookConfigPanel({
                 <span style={{ fontSize: '1.8rem' }}>{act.icon}</span>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, color: T.colors.textPrimary }}>
-                      {act.name}
-                    </span>
+                    <span style={{ fontWeight: 700, color: T.colors.textPrimary }}>{act.name}</span>
                     <span
                       style={{
                         fontSize: '0.72rem',
@@ -617,8 +670,8 @@ export default function AdminLogbookConfigPanel({
                         backgroundColor: act.is_archived
                           ? '#9CA3AF'
                           : act.is_active
-                          ? '#DCFCE7'
-                          : '#FEF3C7',
+                            ? '#DCFCE7'
+                            : '#FEF3C7',
                         color: act.is_archived ? '#FFFFFF' : act.is_active ? '#15803D' : '#B45309',
                         fontWeight: 700,
                       }}
@@ -629,10 +682,25 @@ export default function AdminLogbookConfigPanel({
                       [{act.category}]
                     </span>
                   </div>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: T.colors.textSecondary, maxWidth: 580 }}>
+                  <p
+                    style={{
+                      margin: '4px 0 0',
+                      fontSize: '0.8rem',
+                      color: T.colors.textSecondary,
+                      maxWidth: 580,
+                    }}
+                  >
                     {act.description}
                   </p>
-                  <div style={{ fontSize: '0.74rem', color: T.colors.earthCacao, marginTop: 4, display: 'flex', gap: 10 }}>
+                  <div
+                    style={{
+                      fontSize: '0.74rem',
+                      color: T.colors.earthCacao,
+                      marginTop: 4,
+                      display: 'flex',
+                      gap: 10,
+                    }}
+                  >
                     {act.requires_inputs ? <span>🌱 Insumos obligatorios</span> : null}
                     {act.requires_dose ? <span>⚖️ Dosis obligatoria</span> : null}
                   </div>
@@ -689,7 +757,15 @@ export default function AdminLogbookConfigPanel({
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
           <div>
             <h2 style={{ margin: 0, fontSize: '1.2rem', color: T.colors.primaryGreen }}>
               🧪 Catálogo de Insumos Sugeridos ({inputs.length})
@@ -728,7 +804,13 @@ export default function AdminLogbookConfigPanel({
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: 12,
+          }}
+        >
           {inputs.map((inp) => (
             <div
               key={inp.input_key}
@@ -741,20 +823,33 @@ export default function AdminLogbookConfigPanel({
                 gap: 6,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                }}
+              >
                 <span style={{ fontWeight: 700, color: T.colors.textPrimary, fontSize: '0.88rem' }}>
                   {inp.name}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleDeleteInput(inp)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: T.colors.statusRed }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    color: T.colors.statusRed,
+                  }}
                 >
                   ✕
                 </button>
               </div>
               <div style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}>
-                Unidad típica: <strong>{inp.default_unit}</strong> · {inp.is_organic_certified ? '🌿 Certificado Orgánico' : 'Insumo Convencional'}
+                Unidad típica: <strong>{inp.default_unit}</strong> ·{' '}
+                {inp.is_organic_certified ? '🌿 Certificado Orgánico' : 'Insumo Convencional'}
               </div>
             </div>
           ))}
@@ -774,11 +869,19 @@ export default function AdminLogbookConfigPanel({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 style={{ margin: 0, color: T.colors.textPrimary, fontSize: '1.05rem', fontWeight: 800 }}>
+            <h3
+              style={{
+                margin: 0,
+                color: T.colors.textPrimary,
+                fontSize: '1.05rem',
+                fontWeight: 800,
+              }}
+            >
               🏷️ Campos Dinámicos Personalizados ({customFields.length})
             </h3>
             <p style={{ margin: '4px 0 0', color: T.colors.textSecondary, fontSize: '0.82rem' }}>
-              Extiende el formulario de bitácora con preguntas personalizadas para actividades específicas.
+              Extiende el formulario de bitácora con preguntas personalizadas para actividades
+              específicas.
             </p>
           </div>
           <button
@@ -817,7 +920,13 @@ export default function AdminLogbookConfigPanel({
             No hay campos adicionales configurados. Los formularios usan la estructura estándar.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: 12,
+            }}
+          >
             {customFields.map((fld) => (
               <div
                 key={fld.field_key}
@@ -830,20 +939,35 @@ export default function AdminLogbookConfigPanel({
                   gap: 6,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 700, color: T.colors.textPrimary, fontSize: '0.88rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <span
+                    style={{ fontWeight: 700, color: T.colors.textPrimary, fontSize: '0.88rem' }}
+                  >
                     {fld.label}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleDeleteField(fld)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: T.colors.statusRed }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      color: T.colors.statusRed,
+                    }}
                   >
                     ✕
                   </button>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}>
-                  Tipo: <strong>{fld.field_type}</strong> · {fld.required ? 'Obligatorio' : 'Opcional'}
+                  Tipo: <strong>{fld.field_type}</strong> ·{' '}
+                  {fld.required ? 'Obligatorio' : 'Opcional'}
                 </div>
               </div>
             ))}
@@ -907,9 +1031,7 @@ export default function AdminLogbookConfigPanel({
               <input
                 type="text"
                 value={editingActivity.name || ''}
-                onChange={(e) =>
-                  setEditingActivity((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setEditingActivity((prev) => ({ ...prev, name: e.target.value }))}
                 className="field-input"
                 style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 required
@@ -918,7 +1040,9 @@ export default function AdminLogbookConfigPanel({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Ícono:
                 </label>
                 <input
@@ -932,7 +1056,9 @@ export default function AdminLogbookConfigPanel({
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Categoría:
                 </label>
                 <select
@@ -969,7 +1095,15 @@ export default function AdminLogbookConfigPanel({
             </div>
 
             <div style={{ display: 'flex', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingActivity.requires_inputs)}
@@ -979,7 +1113,15 @@ export default function AdminLogbookConfigPanel({
                 />
                 Requiere insumos
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingActivity.requires_dose)}
@@ -989,7 +1131,15 @@ export default function AdminLogbookConfigPanel({
                 />
                 Requiere dosis
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingActivity.is_active)}
@@ -1089,9 +1239,7 @@ export default function AdminLogbookConfigPanel({
               <input
                 type="text"
                 value={editingInput.name || ''}
-                onChange={(e) =>
-                  setEditingInput((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setEditingInput((prev) => ({ ...prev, name: e.target.value }))}
                 className="field-input"
                 style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 required
@@ -1100,7 +1248,9 @@ export default function AdminLogbookConfigPanel({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Unidad típica:
                 </label>
                 <input
@@ -1114,14 +1264,14 @@ export default function AdminLogbookConfigPanel({
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Tipo:
                 </label>
                 <select
                   value={editingInput.type || 'BIOFERTILIZANTE_LIQUIDO'}
-                  onChange={(e) =>
-                    setEditingInput((prev) => ({ ...prev, type: e.target.value }))
-                  }
+                  onChange={(e) => setEditingInput((prev) => ({ ...prev, type: e.target.value }))}
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 >
@@ -1135,7 +1285,15 @@ export default function AdminLogbookConfigPanel({
             </div>
 
             <div style={{ display: 'flex', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingInput.is_organic_certified)}
@@ -1145,7 +1303,15 @@ export default function AdminLogbookConfigPanel({
                 />
                 Certificado orgánico
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingInput.is_active)}
@@ -1245,9 +1411,7 @@ export default function AdminLogbookConfigPanel({
               <input
                 type="text"
                 value={editingField.label || ''}
-                onChange={(e) =>
-                  setEditingField((prev) => ({ ...prev, label: e.target.value }))
-                }
+                onChange={(e) => setEditingField((prev) => ({ ...prev, label: e.target.value }))}
                 className="field-input"
                 style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 required
@@ -1277,7 +1441,15 @@ export default function AdminLogbookConfigPanel({
             </div>
 
             <div style={{ display: 'flex', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingField.required)}
@@ -1287,7 +1459,15 @@ export default function AdminLogbookConfigPanel({
                 />
                 Obligatorio
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(editingField.is_active)}

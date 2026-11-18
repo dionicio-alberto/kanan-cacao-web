@@ -36,7 +36,8 @@ const FALLBACK_ACTIVITIES: LogbookActivityCatalogItem[] = [
     name: 'Manejo de Sombra y Poda Forestal',
     category: 'AGROFORESTERIA',
     icon: '🌳',
-    description: 'Regulación de luz solar mediante poda de árboles de sombra (guamo, cedro, macuilí).',
+    description:
+      'Regulación de luz solar mediante poda de árboles de sombra (guamo, cedro, macuilí).',
     default_fields: ['labor_hours', 'workers_count'],
     requires_inputs: false,
     requires_dose: false,
@@ -156,9 +157,8 @@ export default function FieldLogbookModule({
   onDeleteFieldLog,
 }: FieldLogbookModuleProps) {
   // Config state
-  const [activitiesCatalog, setActivitiesCatalog] = useState<LogbookActivityCatalogItem[]>(
-    FALLBACK_ACTIVITIES,
-  );
+  const [activitiesCatalog, setActivitiesCatalog] =
+    useState<LogbookActivityCatalogItem[]>(FALLBACK_ACTIVITIES);
   const [inputsCatalog, setInputsCatalog] = useState<LogbookInputCatalogItem[]>([]);
   const [toggles, setToggles] = useState<LogbookFeatureToggles>({
     version: 1,
@@ -182,7 +182,9 @@ export default function FieldLogbookModule({
   const [laborHours, setLaborHours] = useState('');
   const [workersCount, setWorkersCount] = useState('');
   const [costMxn, setCostMxn] = useState('');
-  const [weatherCondition, setWeatherCondition] = useState<'Soleado' | 'Nublado' | 'Lluvioso'>('Soleado');
+  const [weatherCondition, setWeatherCondition] = useState<'Soleado' | 'Nublado' | 'Lluvioso'>(
+    'Soleado',
+  );
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<FieldEvidencePhoto[]>([]);
 
@@ -227,7 +229,9 @@ export default function FieldLogbookModule({
 
   const selectedActivityDef = useMemo(() => {
     return (
-      activitiesCatalog.find((a) => a.activity_key === activityType) ?? activitiesCatalog[0] ?? FALLBACK_ACTIVITIES[0]
+      activitiesCatalog.find((a) => a.activity_key === activityType) ??
+      activitiesCatalog[0] ??
+      FALLBACK_ACTIVITIES[0]
     );
   }, [activitiesCatalog, activityType]);
 
@@ -238,7 +242,8 @@ export default function FieldLogbookModule({
       : fieldLogs;
 
     const fitosanitaryLogs = parcelLogs.filter(
-      (l) => l.activityType === 'DESMOMIFICACION_FITOSANITARIA' || l.activityType === 'CONTROL_PLAGAS',
+      (l) =>
+        l.activityType === 'DESMOMIFICACION_FITOSANITARIA' || l.activityType === 'CONTROL_PLAGAS',
     );
     const nutritionLogs = parcelLogs.filter(
       (l) => l.activityType === 'FERTILIZACION_ORGANICA' || l.activityType === 'FERTILIZACION',
@@ -316,8 +321,10 @@ export default function FieldLogbookModule({
         performedDate,
         inputUsed: toggles.enable_inputs_used && inputUsed ? inputUsed.trim() : undefined,
         dose: toggles.enable_doses && dose ? dose.trim() : undefined,
-        laborHours: toggles.enable_labor_and_costs && laborHours ? parseFloat(laborHours) : undefined,
-        workersCount: toggles.enable_labor_and_costs && workersCount ? parseInt(workersCount, 10) : undefined,
+        laborHours:
+          toggles.enable_labor_and_costs && laborHours ? parseFloat(laborHours) : undefined,
+        workersCount:
+          toggles.enable_labor_and_costs && workersCount ? parseInt(workersCount, 10) : undefined,
         costMxn: toggles.enable_labor_and_costs && costMxn ? parseFloat(costMxn) : undefined,
         weatherCondition: toggles.enable_weather_conditions ? weatherCondition : undefined,
         notes: notes.trim(),
@@ -431,11 +438,16 @@ export default function FieldLogbookModule({
       l.photos.length,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `bitacora_cacao_${selectedParcel?.parcelName || 'general'}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute(
+      'download',
+      `bitacora_cacao_${selectedParcel?.parcelName || 'general'}_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -444,7 +456,13 @@ export default function FieldLogbookModule({
   return (
     <div style={{ display: 'grid', gap: 22 }}>
       {/* 1. RESUMEN AGRONÓMICO Y ALERTAS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 14,
+        }}
+      >
         <div
           style={{
             backgroundColor: T.colors.surfaceCard,
@@ -462,7 +480,9 @@ export default function FieldLogbookModule({
               Control Fitosanitario
             </div>
             <div style={{ fontSize: '1.25rem', fontWeight: 800, color: T.colors.primaryGreen }}>
-              {summaryMetrics.daysSinceFito !== null ? `Hace ${summaryMetrics.daysSinceFito} días` : 'Sin registro'}
+              {summaryMetrics.daysSinceFito !== null
+                ? `Hace ${summaryMetrics.daysSinceFito} días`
+                : 'Sin registro'}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.colors.textSecondary }}>
               Desmomificación de monilia
@@ -487,7 +507,9 @@ export default function FieldLogbookModule({
               Nutrición y Bioinsumo
             </div>
             <div style={{ fontSize: '1.25rem', fontWeight: 800, color: T.colors.primaryGreen }}>
-              {summaryMetrics.daysSinceNutrition !== null ? `Hace ${summaryMetrics.daysSinceNutrition} días` : 'Sin registro'}
+              {summaryMetrics.daysSinceNutrition !== null
+                ? `Hace ${summaryMetrics.daysSinceNutrition} días`
+                : 'Sin registro'}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.colors.textSecondary }}>
               Abono y biofertilizante foliar
@@ -589,7 +611,15 @@ export default function FieldLogbookModule({
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
           {/* PASO 1: SELECCIONA LA ACTIVIDAD (CUÍCULA VISUAL) */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 800, color: T.colors.primaryGreen, marginBottom: 8 }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.92rem',
+                fontWeight: 800,
+                color: T.colors.primaryGreen,
+                marginBottom: 8,
+              }}
+            >
               1. Selecciona la labor realizada:
             </label>
             <div
@@ -620,10 +650,22 @@ export default function FieldLogbookModule({
                     }}
                   >
                     <span style={{ fontSize: '1.8rem' }}>{act.icon}</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: isSelected ? T.colors.primaryGreen : T.colors.textPrimary }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        color: isSelected ? T.colors.primaryGreen : T.colors.textPrimary,
+                      }}
+                    >
                       {act.name}
                     </span>
-                    <span style={{ fontSize: '0.72rem', color: T.colors.textSecondary, lineHeight: 1.3 }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        color: T.colors.textSecondary,
+                        lineHeight: 1.3,
+                      }}
+                    >
                       {act.category}
                     </span>
                   </button>
@@ -631,14 +673,27 @@ export default function FieldLogbookModule({
               })}
             </div>
             {selectedActivityDef.description ? (
-              <div style={{ marginTop: 8, fontSize: '0.8rem', color: T.colors.earthCacao, fontStyle: 'italic' }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: '0.8rem',
+                  color: T.colors.earthCacao,
+                  fontStyle: 'italic',
+                }}
+              >
                 💡 <strong>Guía técnica:</strong> {selectedActivityDef.description}
               </div>
             ) : null}
           </div>
 
           {/* PASO 2: PARCELA Y FECHA */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 14,
+            }}
+          >
             <div>
               <label style={{ fontSize: '0.84rem', fontWeight: 700, color: T.colors.textPrimary }}>
                 Parcela de aplicación:
@@ -673,7 +728,9 @@ export default function FieldLogbookModule({
 
             {toggles.enable_weather_conditions ? (
               <div>
-                <label style={{ fontSize: '0.84rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.84rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Condición climática:
                 </label>
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -687,7 +744,8 @@ export default function FieldLogbookModule({
                         padding: '8px 4px',
                         fontSize: '0.8rem',
                         fontWeight: weatherCondition === w ? 700 : 500,
-                        backgroundColor: weatherCondition === w ? T.colors.primaryGreen : T.colors.surfaceElevated,
+                        backgroundColor:
+                          weatherCondition === w ? T.colors.primaryGreen : T.colors.surfaceElevated,
                         color: weatherCondition === w ? '#FFFFFF' : T.colors.textPrimary,
                         border: `1px solid ${weatherCondition === w ? T.colors.primaryGreen : T.colors.borderControl}`,
                         borderRadius: 6,
@@ -720,7 +778,9 @@ export default function FieldLogbookModule({
 
               {inputsCatalog.length > 0 ? (
                 <div>
-                  <div style={{ fontSize: '0.76rem', color: T.colors.textSecondary, marginBottom: 6 }}>
+                  <div
+                    style={{ fontSize: '0.76rem', color: T.colors.textSecondary, marginBottom: 6 }}
+                  >
                     Sugerencias rápidas:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -751,9 +811,17 @@ export default function FieldLogbookModule({
                 </div>
               ) : null}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: 10,
+                }}
+              >
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}>
+                  <label
+                    style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}
+                  >
                     Insumo o material aplicado:
                   </label>
                   <input
@@ -768,7 +836,9 @@ export default function FieldLogbookModule({
 
                 {toggles.enable_doses || selectedActivityDef.requires_dose ? (
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}>
+                    <label
+                      style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}
+                    >
                       Dosis aplicada:
                     </label>
                     <input
@@ -800,9 +870,17 @@ export default function FieldLogbookModule({
               <div style={{ fontWeight: 700, fontSize: '0.88rem', color: T.colors.primaryGreen }}>
                 ⏱️ Mano de Obra y Costos Invertidos
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: 10,
+                }}
+              >
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}>
+                  <label
+                    style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}
+                  >
                     Horas invertidas:
                   </label>
                   <input
@@ -817,7 +895,9 @@ export default function FieldLogbookModule({
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}>
+                  <label
+                    style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}
+                  >
                     Jornaleros:
                   </label>
                   <input
@@ -831,7 +911,9 @@ export default function FieldLogbookModule({
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}>
+                  <label
+                    style={{ fontSize: '0.8rem', fontWeight: 600, color: T.colors.textPrimary }}
+                  >
                     Costo total (MXN):
                   </label>
                   <input
@@ -963,7 +1045,15 @@ export default function FieldLogbookModule({
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
           <div>
             <h2 style={{ margin: 0, fontSize: '1.25rem', color: T.colors.primaryGreen }}>
               📖 Historial de Actividades Registradas ({displayedLogs.length})
@@ -1076,10 +1166,20 @@ export default function FieldLogbookModule({
                 gap: 10,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.05rem', color: T.colors.primaryGreen }}>
+                    <span
+                      style={{ fontWeight: 800, fontSize: '1.05rem', color: T.colors.primaryGreen }}
+                    >
                       {entry.activityLabel}
                     </span>
                     <span style={{ fontSize: '0.78rem', color: T.colors.textSecondary }}>
@@ -1087,7 +1187,8 @@ export default function FieldLogbookModule({
                     </span>
                   </div>
                   <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary, marginTop: 2 }}>
-                    Parcela: <strong>{entry.parcelName}</strong> · Productor: <strong>{entry.producerName}</strong>
+                    Parcela: <strong>{entry.parcelName}</strong> · Productor:{' '}
+                    <strong>{entry.producerName}</strong>
                   </div>
                 </div>
 
@@ -1127,29 +1228,68 @@ export default function FieldLogbookModule({
               {/* Badges de labor */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: '0.78rem' }}>
                 {entry.inputUsed ? (
-                  <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 600 }}>
+                  <span
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      backgroundColor: '#DCFCE7',
+                      color: '#15803D',
+                      fontWeight: 600,
+                    }}
+                  >
                     🌱 {entry.inputUsed} {entry.dose ? `(${entry.dose})` : ''}
                   </span>
                 ) : null}
                 {entry.laborHours ? (
-                  <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 600 }}>
-                    ⏱️ {entry.laborHours} hrs {entry.workersCount ? `· ${entry.workersCount} jornaleros` : ''}
+                  <span
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      backgroundColor: '#FEF3C7',
+                      color: '#B45309',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⏱️ {entry.laborHours} hrs{' '}
+                    {entry.workersCount ? `· ${entry.workersCount} jornaleros` : ''}
                   </span>
                 ) : null}
                 {entry.costMxn ? (
-                  <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: '#E0E7FF', color: '#4338CA', fontWeight: 600 }}>
+                  <span
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      backgroundColor: '#E0E7FF',
+                      color: '#4338CA',
+                      fontWeight: 600,
+                    }}
+                  >
                     💰 ${entry.costMxn} MXN
                   </span>
                 ) : null}
                 {entry.weatherCondition ? (
-                  <span style={{ padding: '3px 8px', borderRadius: 6, backgroundColor: '#F3F4F6', color: '#374151' }}>
+                  <span
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      backgroundColor: '#F3F4F6',
+                      color: '#374151',
+                    }}
+                  >
                     🌦️ {entry.weatherCondition}
                   </span>
                 ) : null}
               </div>
 
               {entry.notes ? (
-                <p style={{ margin: 0, fontSize: '0.88rem', color: T.colors.textPrimary, lineHeight: 1.45 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.88rem',
+                    color: T.colors.textPrimary,
+                    lineHeight: 1.45,
+                  }}
+                >
                   {entry.notes}
                 </p>
               ) : null}
@@ -1161,7 +1301,13 @@ export default function FieldLogbookModule({
                       key={p.id}
                       src={p.previewDataUrl}
                       alt={p.fileName}
-                      style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 6, border: `1px solid ${T.colors.borderSubtle}` }}
+                      style={{
+                        width: 120,
+                        height: 80,
+                        objectFit: 'cover',
+                        borderRadius: 6,
+                        border: `1px solid ${T.colors.borderSubtle}`,
+                      }}
                     />
                   ))}
                 </div>
@@ -1212,7 +1358,9 @@ export default function FieldLogbookModule({
                 type="text"
                 value={editingEntry.activityLabel || ''}
                 onChange={(e) =>
-                  setEditingEntry((prev) => (prev ? { ...prev, activityLabel: e.target.value } : null))
+                  setEditingEntry((prev) =>
+                    prev ? { ...prev, activityLabel: e.target.value } : null,
+                  )
                 }
                 className="field-input"
                 style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
@@ -1222,14 +1370,18 @@ export default function FieldLogbookModule({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Fecha:
                 </label>
                 <input
                   type="date"
                   value={editingEntry.performedDate || ''}
                   onChange={(e) =>
-                    setEditingEntry((prev) => (prev ? { ...prev, performedDate: e.target.value } : null))
+                    setEditingEntry((prev) =>
+                      prev ? { ...prev, performedDate: e.target.value } : null,
+                    )
                   }
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
@@ -1237,14 +1389,18 @@ export default function FieldLogbookModule({
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Insumo aplicado:
                 </label>
                 <input
                   type="text"
                   value={editingEntry.inputUsed || ''}
                   onChange={(e) =>
-                    setEditingEntry((prev) => (prev ? { ...prev, inputUsed: e.target.value } : null))
+                    setEditingEntry((prev) =>
+                      prev ? { ...prev, inputUsed: e.target.value } : null,
+                    )
                   }
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
@@ -1254,7 +1410,9 @@ export default function FieldLogbookModule({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Horas:
                 </label>
                 <input
@@ -1262,35 +1420,45 @@ export default function FieldLogbookModule({
                   step="0.5"
                   value={editingEntry.laborHours ?? ''}
                   onChange={(e) =>
-                    setEditingEntry((prev) => (prev ? { ...prev, laborHours: parseFloat(e.target.value) || 0 } : null))
+                    setEditingEntry((prev) =>
+                      prev ? { ...prev, laborHours: parseFloat(e.target.value) || 0 } : null,
+                    )
                   }
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Jornales:
                 </label>
                 <input
                   type="number"
                   value={editingEntry.workersCount ?? ''}
                   onChange={(e) =>
-                    setEditingEntry((prev) => (prev ? { ...prev, workersCount: parseInt(e.target.value, 10) || 0 } : null))
+                    setEditingEntry((prev) =>
+                      prev ? { ...prev, workersCount: parseInt(e.target.value, 10) || 0 } : null,
+                    )
                   }
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}>
+                <label
+                  style={{ fontSize: '0.82rem', fontWeight: 700, color: T.colors.textPrimary }}
+                >
                   Costo MXN:
                 </label>
                 <input
                   type="number"
                   value={editingEntry.costMxn ?? ''}
                   onChange={(e) =>
-                    setEditingEntry((prev) => (prev ? { ...prev, costMxn: parseFloat(e.target.value) || 0 } : null))
+                    setEditingEntry((prev) =>
+                      prev ? { ...prev, costMxn: parseFloat(e.target.value) || 0 } : null,
+                    )
                   }
                   className="field-input"
                   style={{ width: '100%', padding: '8px 10px', marginTop: 4 }}
