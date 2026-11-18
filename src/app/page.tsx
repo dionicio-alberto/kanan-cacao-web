@@ -297,6 +297,10 @@ export default function KananCacaoPortalPage() {
                 prev.map((item) => (item.parcelId === updated.parcelId ? updated : item)),
               )
             }
+            onDeleteParcel={(deletedId) => {
+              setParcels((prev) => prev.filter((item) => item.parcelId !== deletedId));
+              setSelectedParcelId(null);
+            }}
             onUpdateParcelSnapshots={(parcelId, snaps) =>
               setParcels((prev) =>
                 prev.map((item) =>

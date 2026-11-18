@@ -1000,6 +1000,71 @@ export async function updateParcelRegistrationDateAdminLive(params: {
   return mapRawParcelToOverview(data.parcel);
 }
 
+export async function updateParcelMetadataAdminLive(params: {
+  parcelId: string;
+  parcelName?: string;
+  producerName?: string;
+  municipality?: string;
+  areaHectares?: number;
+  accessToken?: string;
+}): Promise<ParcelAdminOverview> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (params.accessToken) {
+    headers.Authorization = `Bearer ${params.accessToken}`;
+  }
+  const res = await fetch(
+    `${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(params.parcelId)}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        parcel_name: params.parcelName,
+        producer_name: params.producerName,
+        municipality: params.municipality,
+        area_hectares: params.areaHectares,
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo actualizar la parcela: HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as { parcel: RawPersistedParcel };
+  return {
+    ...mapRawParcelToOverview(data.parcel),
+    parcelName: data.parcel.parcel_name,
+    coordinates: data.parcel.coordinates,
+    extentBbox: data.parcel.extent_bbox,
+    registeredAtIso: data.parcel.registered_at_iso,
+    registrationAuditLog: data.parcel.registration_audit_log,
+    historicalSnapshots: data.parcel.historical_snapshots,
+  };
+}
+
+export async function deleteParcelAdminLive(
+  parcelId: string,
+  accessToken?: string,
+): Promise<{ status: string; parcel_id: string }> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/parcels/${encodeURIComponent(parcelId)}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `No se pudo eliminar la parcela: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchParcelHistoricalSnapshotsLive(
   parcelId: string,
   referenceDateIso?: string,

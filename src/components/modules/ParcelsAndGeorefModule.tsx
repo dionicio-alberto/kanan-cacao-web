@@ -5,10 +5,12 @@ import InteractiveParcelMapPicker from '@/components/InteractiveParcelMapPicker'
 import LiveGeoEnginePanel from '@/components/LiveGeoEnginePanel';
 import {
   buildHistoricalSnapshotsFallback,
+  deleteParcelAdminLive,
   fetchParcelDocumentsLive,
   fetchParcelHistoricalSnapshotsLive,
   getParcelDocumentDownloadUrl,
   preloadParcelHistoricalTiles,
+  updateParcelMetadataAdminLive,
   uploadParcelDocumentLive,
 } from '@/services/geoEngineLiveClient';
 import {
@@ -38,6 +40,7 @@ interface ParcelsAndGeorefModuleProps {
   operatorProfile?: { fullName: string; role: string; accessToken?: string } | null;
   onSelectParcel: (parcelId: string | null) => void;
   onParcelUpdated?: (parcel: ParcelAdminOverview) => void;
+  onDeleteParcel?: (parcelId: string) => void;
   onUpdateParcelSnapshots?: (parcelId: string, snapshots: HistoricalParcelSnapshot[]) => void;
   onUpdateParcelDocuments?: (parcelId: string, documents: ParcelLegalDocument[]) => void;
   onToggleCustf: (parcelId: string) => void;
@@ -62,6 +65,7 @@ export default function ParcelsAndGeorefModule({
   operatorProfile,
   onSelectParcel,
   onParcelUpdated,
+  onDeleteParcel,
   onUpdateParcelSnapshots,
   onUpdateParcelDocuments,
   onToggleCustf,
@@ -70,6 +74,73 @@ export default function ParcelsAndGeorefModule({
   georefStatusMsg,
   georefErrorMsg,
 }: ParcelsAndGeorefModuleProps) {
+  const isAdmin =
+    operatorProfile?.role === 'ADMIN' ||
+    operatorProfile?.role === 'admin_astra' ||
+    operatorProfile?.role === 'superadmin';
+
+  // Estados para Edición de Parcela (Admin)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editParcelName, setEditParcelName] = useState('');
+  const [editProducerName, setEditProducerName] = useState('');
+  const [editMunicipality, setEditMunicipality] = useState('Comalcalco');
+  const [editAreaHectares, setEditAreaHectares] = useState<number>(1.0);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Estados para Eliminación de Parcela (Admin)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleSaveEditParcel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedParcel) return;
+    setIsUpdating(true);
+    setUpdateError(null);
+    try {
+      const updated = await updateParcelMetadataAdminLive({
+        parcelId: selectedParcel.parcelId,
+        parcelName: editParcelName.trim(),
+        producerName: editProducerName.trim(),
+        municipality: editMunicipality.trim(),
+        areaHectares: editAreaHectares,
+        accessToken: operatorProfile?.accessToken,
+      });
+      if (onParcelUpdated) {
+        onParcelUpdated(updated);
+      }
+      setIsEditModalOpen(false);
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Error al actualizar la parcela');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleConfirmDeleteParcel = async () => {
+    if (!selectedParcel) return;
+    if (deleteConfirmText.trim().toLowerCase() !== 'eliminar') {
+      setDeleteError('Por favor escribe la palabra "eliminar" para confirmar.');
+      return;
+    }
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteParcelAdminLive(selectedParcel.parcelId, operatorProfile?.accessToken);
+      if (onDeleteParcel) {
+        onDeleteParcel(selectedParcel.parcelId);
+      }
+      onSelectParcel(null);
+      setIsDeleteModalOpen(false);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Error al eliminar la parcela');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [municipalityFilter, setMunicipalityFilter] = useState('TODAS');
   const [preloadingParcelId, setPreloadingParcelId] = useState<string | null>(null);
@@ -802,19 +873,70 @@ export default function ParcelsAndGeorefModule({
               </h1>
             </div>
 
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                padding: '5px 12px',
-                borderRadius: 8,
-                backgroundColor: toneColors.bg,
-                color: toneColors.fg,
-                border: `1.5px solid ${toneColors.border}`,
-              }}
-            >
-              {friendly.forestStatusLabel}
-            </span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  padding: '5px 12px',
+                  borderRadius: 8,
+                  backgroundColor: toneColors.bg,
+                  color: toneColors.fg,
+                  border: `1.5px solid ${toneColors.border}`,
+                }}
+              >
+                {friendly.forestStatusLabel}
+              </span>
+
+              {isAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditParcelName(selectedParcel.parcelName || '');
+                      setEditProducerName(selectedParcel.producerName || '');
+                      setEditMunicipality(selectedParcel.municipality || 'Comalcalco');
+                      setEditAreaHectares(selectedParcel.areaHectares || 1.0);
+                      setUpdateError(null);
+                      setIsEditModalOpen(true);
+                    }}
+                    className="btn-control"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      backgroundColor: '#FEF3C7',
+                      color: '#92400E',
+                      borderColor: '#F59E0B',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✏️ Editar Parcela
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText('');
+                      setDeleteError(null);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    className="btn-control"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      backgroundColor: '#FEE2E2',
+                      color: '#B91C1C',
+                      borderColor: '#EF4444',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🗑️ Borrar Parcela
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <div
@@ -907,6 +1029,327 @@ export default function ParcelsAndGeorefModule({
             </div>
           ) : null}
         </section>
+
+        {/* Modal de Edición de Parcela (Admin) */}
+        {isEditModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-parcel-modal-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.65)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceCard,
+                borderRadius: 14,
+                border: `1.5px solid ${T.colors.borderSubtle}`,
+                padding: '24px 28px',
+                maxWidth: 480,
+                width: '100%',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              }}
+            >
+              <h3
+                id="edit-parcel-modal-title"
+                style={{
+                  margin: '0 0 16px',
+                  fontSize: '1.2rem',
+                  fontFamily: 'var(--font-serif)',
+                  color: T.colors.primaryGreen,
+                }}
+              >
+                ✏️ Editar Parcela y Productor
+              </h3>
+
+              <form onSubmit={handleSaveEditParcel} style={{ display: 'grid', gap: 14 }}>
+                <div>
+                  <label
+                    htmlFor="edit-parcel-name"
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Nombre de la Parcela:
+                  </label>
+                  <input
+                    id="edit-parcel-name"
+                    type="text"
+                    value={editParcelName}
+                    onChange={(e) => setEditParcelName(e.target.value)}
+                    required
+                    className="field-input"
+                    style={{ width: '100%' }}
+                    placeholder="Ej. Finca La Chontalpa Lote 1"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="edit-producer-name"
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Nombre del Productor:
+                  </label>
+                  <input
+                    id="edit-producer-name"
+                    type="text"
+                    value={editProducerName}
+                    onChange={(e) => setEditProducerName(e.target.value)}
+                    required
+                    className="field-input"
+                    style={{ width: '100%' }}
+                    placeholder="Ej. Mateo Chablé Méndez"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label
+                      htmlFor="edit-municipality"
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Municipio:
+                    </label>
+                    <select
+                      id="edit-municipality"
+                      value={editMunicipality}
+                      onChange={(e) => setEditMunicipality(e.target.value)}
+                      className="field-input"
+                      style={{ width: '100%' }}
+                    >
+                      {TABASCO_MUNICIPALITIES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="edit-area"
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Superficie (ha):
+                    </label>
+                    <input
+                      id="edit-area"
+                      type="number"
+                      step="0.01"
+                      min="0.1"
+                      value={editAreaHectares}
+                      onChange={(e) => setEditAreaHectares(parseFloat(e.target.value) || 0)}
+                      className="field-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                {updateError && (
+                  <div
+                    role="alert"
+                    style={{ color: '#B91C1C', fontSize: '0.82rem', fontWeight: 700 }}
+                  >
+                    ⚠️ {updateError}
+                  </div>
+                )}
+
+                <div
+                  style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="btn-control"
+                    disabled={isUpdating}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdating || !editParcelName.trim() || !editProducerName.trim()}
+                    className="btn-control"
+                    style={{
+                      backgroundColor: T.colors.primaryGreen,
+                      color: '#FFFFFF',
+                      borderColor: T.colors.primaryGreen,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {isUpdating ? 'Guardando...' : '💾 Guardar Cambios'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Eliminación de Parcela (Admin) */}
+        {isDeleteModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-parcel-modal-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.65)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: T.colors.surfaceCard,
+                borderRadius: 14,
+                border: '1.5px solid #EF4444',
+                padding: '24px 28px',
+                maxWidth: 480,
+                width: '100%',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              }}
+            >
+              <h3
+                id="delete-parcel-modal-title"
+                style={{
+                  margin: '0 0 12px',
+                  fontSize: '1.2rem',
+                  fontFamily: 'var(--font-serif)',
+                  color: '#B91C1C',
+                }}
+              >
+                🗑️ Confirmar Eliminación de Parcela
+              </h3>
+
+              <p
+                style={{
+                  fontSize: '0.86rem',
+                  color: T.colors.textPrimary,
+                  lineHeight: 1.5,
+                  margin: '0 0 14px',
+                }}
+              >
+                ¿Estás seguro de que deseas eliminar permanentemente la parcela{' '}
+                <strong>{selectedParcel.parcelName || selectedParcel.producerName}</strong> (Folio:{' '}
+                <code>{selectedParcel.parcelId}</code>)?
+              </p>
+
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  fontSize: '0.8rem',
+                  color: '#991B1B',
+                }}
+              >
+                ⚠️ <strong>Aviso Importante:</strong> Esta acción eliminará el polígono geodésico y
+                sus registros de Supabase PostGIS y del Geo-Engine. Al sincronizar la app móvil,
+                esta parcela será removida automáticamente del dispositivo.
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  htmlFor="delete-confirm-input"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    marginBottom: 4,
+                  }}
+                >
+                  Para confirmar, escribe <code>eliminar</code> abajo:
+                </label>
+                <input
+                  id="delete-confirm-input"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="field-input"
+                  placeholder="eliminar"
+                  style={{ width: '100%' }}
+                  autoComplete="off"
+                />
+              </div>
+
+              {deleteError && (
+                <div
+                  role="alert"
+                  style={{
+                    color: '#B91C1C',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    marginBottom: 12,
+                  }}
+                >
+                  ⚠️ {deleteError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="btn-control"
+                  disabled={isDeleting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteParcel}
+                  disabled={isDeleting || deleteConfirmText.trim().toLowerCase() !== 'eliminar'}
+                  className="btn-control"
+                  style={{
+                    backgroundColor:
+                      deleteConfirmText.trim().toLowerCase() === 'eliminar' ? '#DC2626' : '#FCA5A5',
+                    color: '#FFFFFF',
+                    borderColor: '#DC2626',
+                    fontWeight: 700,
+                    cursor:
+                      deleteConfirmText.trim().toLowerCase() === 'eliminar'
+                        ? 'pointer'
+                        : 'not-allowed',
+                  }}
+                >
+                  {isDeleting ? 'Eliminando...' : '🗑️ Eliminar Definitivamente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <section
           aria-labelledby="parcel-docs-title"
