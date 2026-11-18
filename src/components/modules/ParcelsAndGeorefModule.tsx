@@ -190,6 +190,35 @@ export default function ParcelsAndGeorefModule({
     setActiveDetailSection('general');
   }, [selectedParcel?.parcelId]);
 
+  const selectedCoordinates = useMemo(() => {
+    if (!selectedParcel) return [];
+    return Array.isArray(selectedParcel.coordinates) && selectedParcel.coordinates.length >= 3
+      ? selectedParcel.coordinates
+      : [
+          [-93.2845, 18.256],
+          [-93.281, 18.256],
+          [-93.281, 18.2525],
+          [-93.2845, 18.2525],
+          [-93.2845, 18.256],
+        ];
+  }, [selectedParcel]);
+
+  const generalMapData = useMemo(() => {
+    return computeCacaoTrackTileGrid(
+      selectedCoordinates.length >= 3
+        ? selectedCoordinates
+        : [
+            [-93.2845, 18.256],
+            [-93.281, 18.256],
+            [-93.281, 18.2525],
+            [-93.2845, 18.2525],
+            [-93.2845, 18.256],
+          ],
+      6,
+      5,
+    );
+  }, [selectedCoordinates]);
+
   const handleUploadDocumentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedParcel) {
@@ -809,27 +838,13 @@ export default function ParcelsAndGeorefModule({
           ? { bg: T.colors.statusWarningBg, fg: T.colors.statusWarning, border: '#B45309' }
           : { bg: T.colors.statusRedBg, fg: T.colors.statusRed, border: '#B91C1C' };
 
-    const coordinates =
-      Array.isArray(selectedParcel.coordinates) && selectedParcel.coordinates.length >= 3
-        ? selectedParcel.coordinates
-        : [
-            [-93.2845, 18.256],
-            [-93.281, 18.256],
-            [-93.281, 18.2525],
-            [-93.2845, 18.2525],
-            [-93.2845, 18.256],
-          ];
+    const coordinates = selectedCoordinates;
     const vertexCount =
       coordinates.length > 1 &&
       coordinates[0][0] === coordinates[coordinates.length - 1][0] &&
       coordinates[0][1] === coordinates[coordinates.length - 1][1]
         ? coordinates.length - 1
         : coordinates.length;
-
-    const generalMapData = useMemo(
-      () => computeCacaoTrackTileGrid(coordinates, 6, 5),
-      [coordinates],
-    );
 
     return (
       <div style={{ display: 'grid', gap: 16 }}>
