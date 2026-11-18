@@ -14,6 +14,69 @@ export interface RolePermissionSet {
   can_view_carbon: boolean;
   can_edit_regdate: boolean;
   can_manage_roles: boolean;
+  can_configure_logbook: boolean;
+}
+
+export interface LogbookFeatureToggles {
+  version: number;
+  enable_photos: boolean;
+  enable_inputs_used: boolean;
+  enable_doses: boolean;
+  enable_labor_and_costs: boolean;
+  enable_weather_conditions: boolean;
+  enable_satellite_comparison: boolean;
+  enable_eudr_flags: boolean;
+  enable_custom_fields: boolean;
+  allow_producer_custom_tags: boolean;
+  min_required_photos: number;
+  updated_at_iso?: string;
+  updated_by?: string;
+}
+
+export interface LogbookActivityCatalogItem {
+  activity_key: string;
+  name: string;
+  category: string;
+  icon: string;
+  description: string;
+  default_fields: string[];
+  requires_inputs: boolean;
+  requires_dose: boolean;
+  is_active: boolean;
+  is_archived: boolean;
+  sort_order: number;
+  created_at_iso?: string;
+  updated_at_iso?: string;
+}
+
+export interface LogbookInputCatalogItem {
+  input_key: string;
+  name: string;
+  type: string;
+  default_unit: string;
+  is_organic_certified: boolean;
+  is_active: boolean;
+  is_archived: boolean;
+  sort_order: number;
+}
+
+export interface LogbookCustomFieldItem {
+  field_key: string;
+  activity_key?: string | null;
+  label: string;
+  field_type: string;
+  options: string[];
+  required: boolean;
+  is_active: boolean;
+  is_archived: boolean;
+  sort_order: number;
+}
+
+export interface LogbookFullConfigBundle {
+  config: LogbookFeatureToggles;
+  activities: LogbookActivityCatalogItem[];
+  inputs: LogbookInputCatalogItem[];
+  custom_fields: LogbookCustomFieldItem[];
 }
 
 export interface EditableRoleDefinition {

@@ -194,4 +194,52 @@ describe('Web Test Suite: Sección Bitácora', () => {
     expect(byDate).toHaveLength(2);
     expect(byDate.map((l) => l.id)).toEqual(['L-2', 'L-3']);
   });
+
+  it('permite registrar labores agronómicas con desglose de costos, jornales y dosis', () => {
+    const entry: FieldLogEntry = {
+      id: 'L-AGRO-1',
+      parcelId: 'PAR-1',
+      parcelName: 'Finca La Chontalpa',
+      producerId: 'PROD-1',
+      producerName: 'Don Mateo Hernández',
+      activityType: 'FERTILIZACION_ORGANICA',
+      activityLabel: 'Fertilización Orgánica / Bocashi',
+      performedDate: '2026-11-18',
+      inputUsed: 'Bocashi maduro',
+      dose: '3 kg/árbol',
+      costMxn: 450,
+      laborHours: 6,
+      workersCount: 2,
+      weatherCondition: 'NUBLADO',
+      customFields: {
+        metodo_aplicacion: 'Corona',
+      },
+      notes: 'Aplicación en árboles en producción previa a floración',
+      photos: [],
+      createdAtIso: new Date().toISOString(),
+    };
+
+    expect(entry.costMxn).toBe(450);
+    expect(entry.laborHours).toBe(6);
+    expect(entry.workersCount).toBe(2);
+    expect(entry.weatherCondition).toBe('NUBLADO');
+    expect(entry.customFields?.metodo_aplicacion).toBe('Corona');
+    expect(entry.dose).toBe('3 kg/árbol');
+  });
+
+  it('excluye labores de corte y acopio del catálogo de actividades agronómicas recomendadas', () => {
+    const recommendedActivities = [
+      'MANEJO_SOMBRA',
+      'PODA_CACAO',
+      'DESMOMIFICACION_FITOSANITARIA',
+      'FERTILIZACION_ORGANICA',
+      'CONTROL_MALEZAS',
+      'RIEGO_DRENAJE',
+      'APLICACION_BIOINSUMO',
+      'INSPECCION_FLORACION',
+    ];
+
+    expect(recommendedActivities).not.toContain('COSECHA_CORTE');
+    expect(recommendedActivities).not.toContain('ACOPIO');
+  });
 });

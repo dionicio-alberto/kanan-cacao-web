@@ -276,6 +276,14 @@ export default function KananCacaoPortalPage() {
     }
   };
 
+  const handleUpdateFieldLog = (updated: FieldLogEntry) => {
+    setFieldLogs((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+  };
+
+  const handleDeleteFieldLog = (deletedId: string) => {
+    setFieldLogs((prev) => prev.filter((l) => l.id !== deletedId));
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <a href="#main-workbench" className="skip-link">
@@ -363,6 +371,8 @@ export default function KananCacaoPortalPage() {
             onSelectParcel={(id) => setSelectedParcelId(id)}
             fieldLogs={fieldLogs}
             onAddFieldLog={handleAddFieldLog}
+            onUpdateFieldLog={handleUpdateFieldLog}
+            onDeleteFieldLog={handleDeleteFieldLog}
           />
         ) : null}
 
@@ -379,7 +389,8 @@ export default function KananCacaoPortalPage() {
 
         {activeSection === 'carbono' ? <CarbonBonusModule parcels={parcels} /> : null}
 
-        {activeSection === 'admin_panel' && operatorProfile.role === 'admin_astra' ? (
+        {activeSection === 'admin_panel' &&
+        (operatorProfile.role === 'admin_astra' || operatorProfile.role === 'ADMIN') ? (
           <AdminRoleControlModule operatorProfile={operatorProfile} />
         ) : null}
       </main>
