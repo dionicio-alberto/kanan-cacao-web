@@ -106,6 +106,13 @@ export const FIELD_ACTIVITY_LABELS: Record<string, string> = {
   RIEGO_RESIEMBRA: 'Riego y resiembra de plantas',
 };
 
+/**
+ * Traduce los indicadores técnicos satelitales (EUDR, NDVI y permisos CUSTF)
+ * a un resumen en lenguaje claro y humano para el productor cacaotero.
+ *
+ * @param parcel Datos administrativos y satelitales de la parcela seleccionada.
+ * @returns Resumen amigable con el estado del monte, salud del follaje y estatus de papeles legales.
+ */
 export function getProducerFriendlyParcelStatus(
   parcel?: ParcelAdminOverview | null,
 ): ProducerFriendlyParcelSummary {
@@ -160,6 +167,16 @@ export function getProducerFriendlyParcelStatus(
   };
 }
 
+/**
+ * Construye matemáticamente un anillo de polígono cerrado (norma GeoJSON RFC 7946)
+ * a partir de una coordenada central (latitud, longitud) y la superficie en hectáreas.
+ * El primer y el último vértice son idénticos para garantizar un lindero cerrado válido.
+ *
+ * @param centerLat Latitud del centro de la parcela (grados decimales WGS84).
+ * @param centerLng Longitud del centro de la parcela (grados decimales WGS84).
+ * @param areaHectares Superficie del terreno en hectáreas (1 ha = 10,000 m²).
+ * @returns Arreglo de 5 pares de coordenadas `[longitud, latitud]`.
+ */
 export function buildClosedPolygonFromCenter(
   centerLat: number,
   centerLng: number,
@@ -187,6 +204,14 @@ export function buildClosedPolygonFromCenter(
   ];
 }
 
+/**
+ * Convierte un texto libre con pares de coordenadas `longitud, latitud` (una esquina por línea)
+ * en un anillo geométrico cerrado válido. Si el usuario no repitió la primera esquina al final,
+ * esta función cierra el polígono automáticamente.
+ *
+ * @param rawText Texto con pares de coordenadas separados por coma o espacio.
+ * @returns Arreglo de coordenadas `[longitud, latitud]` con anillo cerrado.
+ */
 export function parseCoordinatePairsText(rawText: string): number[][] {
   const lines = rawText
     .split(/\r?\n/)
@@ -213,6 +238,14 @@ export function parseCoordinatePairsText(rawText: string): number[][] {
   return coords;
 }
 
+/**
+ * Valida y construye un nuevo registro para la Bitácora de Campo del productor.
+ * Verifica que la parcela, la fecha realizada y la descripción de la labor estén completas
+ * antes de generar el identificador único del registro.
+ *
+ * @param input Datos capturados en el formulario de la labor agronómica.
+ * @returns Objeto `FieldLogEntry` validado y listo para guardarse y sincronizarse.
+ */
 export function createFieldLogEntry(input: {
   parcelId: string;
   parcelName: string;
