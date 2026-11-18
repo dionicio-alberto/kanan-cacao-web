@@ -25,6 +25,8 @@ export interface FieldLogEntry {
   id: string;
   parcelId: string;
   parcelName: string;
+  producerId?: string;
+  producerName?: string;
   activityType: FieldActivityType;
   activityLabel: string;
   performedDate: string;
@@ -178,6 +180,8 @@ export function parseCoordinatePairsText(rawText: string): number[][] {
 export function createFieldLogEntry(input: {
   parcelId: string;
   parcelName: string;
+  producerId?: string;
+  producerName?: string;
   activityType: FieldActivityType;
   performedDate: string;
   fertilizationDate?: string;
@@ -204,6 +208,8 @@ export function createFieldLogEntry(input: {
     id: `LOG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     parcelId: input.parcelId,
     parcelName: input.parcelName,
+    producerId: input.producerId || undefined,
+    producerName: input.producerName || undefined,
     activityType: input.activityType,
     activityLabel: FIELD_ACTIVITY_LABELS[input.activityType],
     performedDate: input.performedDate,

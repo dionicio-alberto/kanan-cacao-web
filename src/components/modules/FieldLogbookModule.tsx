@@ -36,7 +36,10 @@ export default function FieldLogbookModule({
   const [inputUsed, setInputUsed] = useState('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<FieldEvidencePhoto[]>([]);
-  const [filterParcelOnly, setFilterParcelOnly] = useState(false);
+  const [filterParcelId, setFilterParcelId] = useState<string>('ALL');
+  const [filterProducerQuery, setFilterProducerQuery] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -79,6 +82,8 @@ export default function FieldLogbookModule({
       const entry = createFieldLogEntry({
         parcelId: selectedParcel.parcelId,
         parcelName: selectedParcel.parcelName || selectedParcel.producerName,
+        producerId: selectedParcel.producerId,
+        producerName: selectedParcel.producerName,
         activityType,
         performedDate,
         fertilizationDate: fertilizationDate || undefined,
@@ -99,9 +104,34 @@ export default function FieldLogbookModule({
     }
   };
 
-  const displayedLogs = filterParcelOnly
-    ? fieldLogs.filter((entry) => entry.parcelId === selectedParcel.parcelId)
-    : fieldLogs;
+  const displayedLogs = fieldLogs.filter((entry) => {
+    if (filterParcelId !== 'ALL' && entry.parcelId !== filterParcelId) {
+      return false;
+    }
+    if (filterProducerQuery.trim()) {
+      const q = filterProducerQuery.toLowerCase().trim();
+      const matchName = entry.producerName?.toLowerCase().includes(q);
+      const matchId = entry.producerId?.toLowerCase().includes(q);
+      const matchParcel = entry.parcelName?.toLowerCase().includes(q);
+      if (!matchName && !matchId && !matchParcel) {
+        return false;
+      }
+    }
+    if (filterStartDate && entry.performedDate < filterStartDate) {
+      return false;
+    }
+    if (filterEndDate && entry.performedDate > filterEndDate) {
+      return false;
+    }
+    return true;
+  });
+
+  const handleResetFilters = () => {
+    setFilterParcelId('ALL');
+    setFilterProducerQuery('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
 
   return (
     <div style={{ display: 'grid', gap: 22 }}>
@@ -440,19 +470,111 @@ export default function FieldLogbookModule({
               color: T.colors.primaryGreen,
             }}
           >
-            Historial de Acciones en Parcela ({displayedLogs.length})
+            Historial de la Bitácora ({displayedLogs.length} registros)
           </h2>
 
-          <button
-            type="button"
-            className="btn-control"
-            onClick={() => setFilterParcelOnly((prev) => !prev)}
-            style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-          >
-            {filterParcelOnly
-              ? 'Ver bitácora de todas las parcelas'
-              : `Filtrar solo ${selectedParcel.parcelName || selectedParcel.producerName}`}
-          </button>
+          {(filterParcelId !== 'ALL' ||
+            filterProducerQuery ||
+            filterStartDate ||
+            filterEndDate) && (
+            <button
+              type="button"
+              className="btn-control"
+              onClick={handleResetFilters}
+              style={{ fontSize: '0.8rem', padding: '5px 10px' }}
+            >
+              🔄 Limpiar filtros
+            </button>
+          )}
+        </div>
+
+        {/* Barra de Filtros interactiva: Parcela, Productor y Rango de Fechas */}
+        <div
+          style={{
+            backgroundColor: T.colors.surfaceElevated,
+            border: `1px solid ${T.colors.borderSubtle}`,
+            borderRadius: 10,
+            padding: 14,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 12,
+            alignItems: 'end',
+          }}
+        >
+          <div>
+            <label
+              htmlFor="filter-parcel-select"
+              style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 4 }}
+            >
+              Filtrar por Parcela
+            </label>
+            <select
+              id="filter-parcel-select"
+              value={filterParcelId}
+              onChange={(e) => setFilterParcelId(e.target.value)}
+              className="field-input"
+              style={{ fontSize: '0.84rem', padding: '6px 8px' }}
+            >
+              <option value="ALL">Todas las parcelas</option>
+              {parcels.map((p) => (
+                <option key={p.parcelId} value={p.parcelId}>
+                  {p.parcelName || p.producerName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="filter-producer-input"
+              style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 4 }}
+            >
+              Filtrar por Productor
+            </label>
+            <input
+              id="filter-producer-input"
+              type="text"
+              value={filterProducerQuery}
+              onChange={(e) => setFilterProducerQuery(e.target.value)}
+              placeholder="Buscar por productor..."
+              className="field-input"
+              style={{ fontSize: '0.84rem', padding: '6px 8px' }}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="filter-start-date"
+              style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 4 }}
+            >
+              Fecha desde
+            </label>
+            <input
+              id="filter-start-date"
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="field-input"
+              style={{ fontSize: '0.84rem', padding: '6px 8px' }}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="filter-end-date"
+              style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 4 }}
+            >
+              Fecha hasta
+            </label>
+            <input
+              id="filter-end-date"
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="field-input"
+              style={{ fontSize: '0.84rem', padding: '6px 8px' }}
+            />
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: 12 }}>
@@ -482,8 +604,14 @@ export default function FieldLogbookModule({
                     {entry.activityLabel}
                   </strong>
                   <div style={{ fontSize: '0.82rem', color: T.colors.textSecondary }}>
-                    Parcela: <strong>{entry.parcelName}</strong> · Realizado el{' '}
-                    <strong>{formatDisplayDateEs(entry.performedDate)}</strong>
+                    Parcela: <strong>{entry.parcelName}</strong>
+                    {entry.producerName ? (
+                      <>
+                        {' '}
+                        · Productor: <strong>{entry.producerName}</strong>
+                      </>
+                    ) : null}{' '}
+                    · Realizado el <strong>{formatDisplayDateEs(entry.performedDate)}</strong>
                   </div>
                 </div>
 
