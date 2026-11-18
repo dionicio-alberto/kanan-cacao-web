@@ -35,6 +35,7 @@ export interface FieldLogEntry {
   inputUsed?: string;
   notes: string;
   photos: FieldEvidencePhoto[];
+  syncStatus?: 'LOCAL_PENDING' | 'SYNCED' | 'LOCAL_ONLY' | string;
   createdAtIso: string;
 }
 
