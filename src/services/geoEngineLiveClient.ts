@@ -6,6 +6,7 @@ import {
   ParcelLegalDocument,
   RegistrationDateAuditEntry,
 } from '@/services/sustainabilityAdminService';
+import { FieldLogEntry } from '@/services/producerLogbookService';
 
 const rawGeoEngineUrl =
   process.env.NEXT_PUBLIC_GEO_ENGINE_API_URL ||
@@ -1301,4 +1302,113 @@ export async function saveRoleDefinitionAdminLive(params: {
     throw new Error(errBody.detail ?? `No se pudo guardar el rol: HTTP ${res.status}`);
   }
   return (await res.json()) as AdminRolesPanelPayload;
+}
+
+export async function fetchFieldLogsLive(filters?: {
+  parcelId?: string;
+  producerId?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<FieldLogEntry[]> {
+  const query = new URLSearchParams();
+  if (filters?.parcelId) query.set('parcel_id', filters.parcelId);
+  if (filters?.producerId) query.set('producer_id', filters.producerId);
+  if (filters?.startDate) query.set('start_date', filters.startDate);
+  if (filters?.endDate) query.set('end_date', filters.endDate);
+
+  const qs = query.toString();
+  const url = `${GEO_ENGINE_BASE_URL}/api/v1/logbook${qs ? `?${qs}` : ''}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Error HTTP ${res.status} al consultar la bitácora.`);
+  }
+  const data = (await res.json()) as { count: number; entries: Record<string, unknown>[] };
+  return (data.entries || []).map((e) => ({
+    id: String(e.id),
+    parcelId: String(e.parcel_id || e.parcelId),
+    parcelName: String(e.parcel_name || e.parcelName),
+    producerId: e.producer_id ? String(e.producer_id) : undefined,
+    producerName: e.producer_name ? String(e.producer_name) : undefined,
+    activityType: (e.activity_type ||
+      e.activityType) as import('@/services/producerLogbookService').FieldActivityType,
+    activityLabel: String(e.activity_label || e.activityLabel),
+    performedDate: String(e.performed_date || e.performedDate),
+    fertilizationDate:
+      e.fertilization_date || e.fertilizationDate
+        ? String(e.fertilization_date || e.fertilizationDate)
+        : undefined,
+    expectedHarvestDate:
+      e.expected_harvest_date || e.expectedHarvestDate
+        ? String(e.expected_harvest_date || e.expectedHarvestDate)
+        : undefined,
+    inputUsed: e.input_used || e.inputUsed ? String(e.input_used || e.inputUsed) : undefined,
+    notes: String(e.notes || ''),
+    photos: Array.isArray(e.photos)
+      ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
+      : [],
+    createdAtIso: String(e.created_at_iso || e.createdAtIso || new Date().toISOString()),
+  }));
+}
+
+export async function saveFieldLogLive(entry: FieldLogEntry): Promise<FieldLogEntry> {
+  const payload = {
+    id: entry.id,
+    parcel_id: entry.parcelId,
+    parcel_name: entry.parcelName,
+    producer_id: entry.producerId,
+    producer_name: entry.producerName,
+    activity_type: entry.activityType,
+    activity_label: entry.activityLabel,
+    performed_date: entry.performedDate,
+    fertilization_date: entry.fertilizationDate,
+    expected_harvest_date: entry.expectedHarvestDate,
+    input_used: entry.inputUsed,
+    notes: entry.notes,
+    photos: entry.photos,
+    created_at_iso: entry.createdAtIso,
+    updated_at_ms: Date.now(),
+  };
+
+  const res = await fetch(`${GEO_ENGINE_BASE_URL}/api/v1/logbook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(errBody.detail ?? `Error HTTP ${res.status} al guardar en la bitácora.`);
+  }
+  const data = (await res.json()) as { status: string; entry: Record<string, unknown> };
+  const e = data.entry;
+  return {
+    id: String(e.id),
+    parcelId: String(e.parcel_id || e.parcelId),
+    parcelName: String(e.parcel_name || e.parcelName),
+    producerId: e.producer_id ? String(e.producer_id) : undefined,
+    producerName: e.producer_name ? String(e.producer_name) : undefined,
+    activityType: (e.activity_type ||
+      e.activityType) as import('@/services/producerLogbookService').FieldActivityType,
+    activityLabel: String(e.activity_label || e.activityLabel),
+    performedDate: String(e.performed_date || e.performedDate),
+    fertilizationDate:
+      e.fertilization_date || e.fertilizationDate
+        ? String(e.fertilization_date || e.fertilizationDate)
+        : undefined,
+    expectedHarvestDate:
+      e.expected_harvest_date || e.expectedHarvestDate
+        ? String(e.expected_harvest_date || e.expectedHarvestDate)
+        : undefined,
+    inputUsed: e.input_used || e.inputUsed ? String(e.input_used || e.inputUsed) : undefined,
+    notes: String(e.notes || ''),
+    photos: Array.isArray(e.photos)
+      ? (e.photos as import('@/services/producerLogbookService').FieldEvidencePhoto[])
+      : [],
+    createdAtIso: String(e.created_at_iso || e.createdAtIso || new Date().toISOString()),
+  };
 }

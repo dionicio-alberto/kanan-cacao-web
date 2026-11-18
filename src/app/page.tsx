@@ -13,7 +13,9 @@ import ProducerTopNav from '@/components/ProducerTopNav';
 import PublicLandingAndLogin from '@/components/PublicLandingAndLogin';
 import { INITIAL_PARCELS } from '@/services/demoParcels';
 import {
+  fetchFieldLogsLive,
   fetchPersistedParcelsWithMeta,
+  saveFieldLogLive,
   syncFieldParcelToSqliteLive,
   toggleParcelCustfLive,
 } from '@/services/geoEngineLiveClient';
@@ -128,6 +130,16 @@ export default function KananCacaoPortalPage() {
         if (active) {
           setStorageEngine('local_fallback');
         }
+      });
+
+    fetchFieldLogsLive()
+      .then((logs) => {
+        if (active && logs.length > 0) {
+          setFieldLogs(logs);
+        }
+      })
+      .catch(() => {
+        // Fallback local/demo
       });
 
     return () => {
@@ -253,6 +265,15 @@ export default function KananCacaoPortalPage() {
     }
   };
 
+  const handleAddFieldLog = async (entry: FieldLogEntry) => {
+    setFieldLogs((prev) => [entry, ...prev]);
+    try {
+      await saveFieldLogLive(entry);
+    } catch {
+      // Retiene estado optimista en pantalla si el backend tarda
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <a href="#main-workbench" className="skip-link">
@@ -339,7 +360,7 @@ export default function KananCacaoPortalPage() {
             selectedParcel={fallbackParcel}
             onSelectParcel={(id) => setSelectedParcelId(id)}
             fieldLogs={fieldLogs}
-            onAddFieldLog={(entry) => setFieldLogs((prev) => [entry, ...prev])}
+            onAddFieldLog={handleAddFieldLog}
           />
         ) : null}
 
